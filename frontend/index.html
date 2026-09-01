@@ -118,7 +118,6 @@
                 ? 'bg-indigo-600/20 border-indigo-500/30 rounded-2xl rounded-tr-sm' 
                 : 'bg-slate-800/50 border-slate-700/50 rounded-2xl rounded-tl-sm';
             
-            // Convert markdown-style bold to HTML
             const formattedContent = content
                 .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
                 .replace(/\n/g, '<br>');
@@ -129,11 +128,35 @@
                     <div class="${bubbleClass} border px-5 py-4">
                         <div class="text-slate-200 leading-relaxed">${formattedContent}</div>
                     </div>
+                    ${!isUser ? `<button onclick="downloadDocx('${btoa(unescape(encodeURIComponent(content)))}')" class="mt-2 text-xs text-indigo-400 hover:text-indigo-300 flex items-center gap-1">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                        Download DOCX
+                    </button>` : ''}
                 </div>
             `;
             
             chatContainer.appendChild(div);
             chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+
+        async function downloadDocx(base64Content) {
+            const content = decodeURIComponent(escape(atob(base64Content)));
+            try {
+                const response = await fetch('/api/export-docx', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ report: content })
+                });
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'production-passport-report.docx';
+                a.click();
+                window.URL.revokeObjectURL(url);
+            } catch (err) {
+                alert('Error downloading document');
+            }
         }
 
         function addTypingIndicator() {
