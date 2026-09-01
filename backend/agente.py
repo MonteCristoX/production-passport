@@ -1,63 +1,77 @@
 import os, json, requests
 
-P_KEY = os.getenv("PARALLEL_API_KEY", "")
-G_KEY = os.getenv("GEMINI_API_KEY", "")
+def get_key(name):
+    return os.environ.get(name, "")
 
 def ps(q):
-    if not P_KEY: return {"results": []}
+    k = get_key("PARALLEL_API_KEY")
+    if not k: return {"results": []}
     try:
         r = requests.post("https://api.parallel.ai/v1/search",
-            headers={"Content-Type": "application/json", "x-api-key": P_KEY},
+            headers={"Content-Type": "application/json", "x-api-key": k},
             json={"objective": q, "search_queries": [q], "mode": "fast"}, timeout=15)
+        r.raise_for_status()
         return r.json()
-    except: return {"results": []}
+    except Exception as e:
+        print(f"Parallel search error: {e}")
+        return {"results": []}
 
 def pe(url, obj=""):
-    if not P_KEY or not url: return ""
+    k = get_key("PARALLEL_API_KEY")
+    if not k or not url: return ""
     try:
         r = requests.post("https://api.parallel.ai/v1/extract",
-            headers={"Content-Type": "application/json", "x-api-key": P_KEY},
+            headers={"Content-Type": "application/json", "x-api-key": k},
             json={"urls": [url], "objective": obj or "Extract"}, timeout=15)
+        r.raise_for_status()
         d = r.json()
         ex = d.get("results", [{}])[0].get("excerpts", [""])
         return ex[0][:1500] if ex else ""
-    except: return ""
+    except Exception as e:
+        print(f"Parallel extract error: {e}")
+        return ""
 
-def gm(prompt):
-    if not G_KEY: return ""
-    try:
-        r = requests.post("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent",
-            json={"contents": [{"parts": [{"text": prompt}]}], "generationConfig": {"temperature": 0.7, "maxOutputTokens": 4096}},
-            params={"key": G_KEY}, timeout=60)
-        return r.json()["candidates"][0]["content"]["parts"][0]["text"]
-    except: return ""
+def gm(prompt, retries=3):
+    k = get_key("GEMINI_API_KEY")
+    if not k:
+        return "Error: GEMINI_API_KEY not configured"
+    
+    for attempt in range(retries):
+        try:
+            r = requests.post("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent",
+                json={"contents": [{"parts": [{"text": prompt}]}], "generationConfig": {"temperature": 0.7, "maxOutputTokens": 4096}},
+                params={"key": k}, timeout=60)
+            r.raise_for_status()
+            return r.json()["candidates"][0]["content"]["parts"][0]["text"]
+        except requests.exceptions.HTTPError as e:
+            if e.response.status_code == 429:
+                import time
+                wait = 30 * (attempt + 1)
+                print(f"Rate limited, waiting {wait}s...")
+                time.sleep(wait)
+                continue
+            print(f"Gemini HTTP error: {e}")
+            return f"API Error: {e}"
+        except Exception as e:
+            print(f"Gemini error: {e}")
+            return f"Error: {e}"
+    return "Error: Rate limit exceeded. Please try again in a moment."
 
 def process_query(message):
-    # Extract
-    data = {"countries":["Mexico","Colombia"],"location_type":"urban","extras":0,"drones":False,"budget_usd":0}
-    try:
-        j = gm(f'Extract from: "{message}"\nJSON: {{"countries":["c1"],"location_type":"urban","extras":0,"drones":false,"budget_usd":0}}')
-        j = j.replace("```json","").replace("```","").strip()
-        data.update(json.loads(j))
-    except: pass
-    data["extras"] = int(data.get("extras") or 0)
-    data["budget_usd"] = int(data.get("budget_usd") or 0)
-    if not data["countries"]: data["countries"] = ["Mexico","Colombia"]
-
-    # Research (máximo 3 búsquedas por país para rapidez)
+    # Extract with regex fallback (no API call needed)
+    data = extract_production_info(message)
+    
+    # Research
     research = {}
     for c in data["countries"]:
         research[c] = []
-        # Permisos
         for r in ps(f"{c} film commission permit requirements costs 2025").get("results",[])[:2]:
             if r.get("url"):
                 research[c].append(f"[{r.get('title','')}]({r.get('url','')}): {pe(r['url'], 'film permits')[:800]}")
-        # Drones
         if data["drones"]:
             for r in ps(f"{c} drone laws filming foreigners").get("results",[])[:1]:
                 if r.get("url"):
                     research[c].append(f"[DRONES {r.get('title','')}]({r.get('url','')}): {pe(r['url'], 'drone laws')[:800]}")
-        # Crew local
         for r in ps(f"{c} film production crew hire rental").get("results",[])[:1]:
             if r.get("url"):
                 research[c].append(f"[CREW {r.get('title','')}]({r.get('url','')}): {pe(r['url'], 'crew hire')[:800]}")
@@ -84,6 +98,94 @@ Write a comprehensive but concise report (max 2500 chars). Structure:
 Be specific. No "data unavailable". Use estimates marked as (estimate). Include source URLs as markdown links."""
     
     return gm(prompt)
+
+
+def extract_production_info(message):
+    """Extract production info using regex (no API needed)."""
+    import re
+    msg = message.lower()
+    
+    # Countries
+    country_map = {
+        "mexico": "Mexico", "méxico": "Mexico", "mexico city": "Mexico",
+        "colombia": "Colombia", "bogota": "Colombia", "bogotá": "Colombia",
+        "spain": "Spain", "madrid": "Spain", "barcelona": "Spain",
+        "argentina": "Argentina", "buenos aires": "Argentina",
+        "brazil": "Brazil", "rio": "Brazil", "sao paulo": "Brazil",
+        "chile": "Chile", "santiago": "Chile",
+        "peru": "Peru", "lima": "Peru",
+        "costa rica": "Costa Rica",
+        "japan": "Japan", "tokyo": "Japan",
+        "us": "United States", "usa": "United States", "los angeles": "United States", "new york": "United States",
+        "uk": "United Kingdom", "london": "United Kingdom",
+        "france": "France", "paris": "France",
+        "germany": "Germany", "berlin": "Germany",
+        "italy": "Italy", "rome": "Italy",
+        "australia": "Australia", "sydney": "Australia"
+    }
+    
+    countries = []
+    for key, val in country_map.items():
+        if key in msg and val not in countries:
+            countries.append(val)
+    
+    if not countries:
+        countries = ["Mexico", "Colombia"]
+    
+    # Location type
+    location_type = "urban"
+    if any(w in msg for w in ["colonial", "historic", "old town"]):
+        location_type = "heritage"
+    elif any(w in msg for w in ["mountain", "beach", "forest", "desert", "nature", "outdoor"]):
+        location_type = "natural"
+    elif any(w in msg for w in ["studio", "indoor", "interior"]):
+        location_type = "interior"
+    elif any(w in msg for w in ["aerial", "drone", "fly"]):
+        location_type = "aerial"
+    
+    # Extras
+    extras = 0
+    extras_match = re.search(r'(\d+)\s*extras', msg)
+    if extras_match:
+        extras = int(extras_match.group(1))
+    
+    # Drones
+    drones = any(w in msg for w in ["drone", "drones", "uav", "aerial"])
+    
+    # Pyrotechnics
+    pyrotechnics = any(w in msg for w in ["pyro", "pyrotechnics", "fireworks", "explosion", "fire"])
+    
+    # Night shoot
+    night_shoot = any(w in msg for w in ["night", "evening", "dusk", "dark"])
+    
+    # Budget - look for budget-related keywords
+    budget_usd = 0
+    budget_patterns = [
+        r'(?:budget|cost|spend|invest)\s*(?:of\s*)?\$?(\d{1,3}(?:,\d{3})*(?:\.\d+)?)\s*(k|thousand|million|m|usd)?',
+        r'\$(\d{1,3}(?:,\d{3})*(?:\.\d+)?)\s*(k|thousand|million|m)?',
+        r'(\d{1,3}(?:,\d{3})*(?:\.\d+)?)\s*(k|thousand|million|m)\s*(?:budget|cost|usd|dollars?)',
+    ]
+    for pattern in budget_patterns:
+        budget_match = re.search(pattern, msg)
+        if budget_match:
+            amount = float(budget_match.group(1).replace(",", ""))
+            unit = (budget_match.group(2) or "").lower()
+            if unit in ["k", "thousand"]:
+                amount *= 1000
+            elif unit in ["million", "m"]:
+                amount *= 1000000
+            budget_usd = int(amount)
+            break
+    
+    return {
+        "countries": countries,
+        "location_type": location_type,
+        "extras": extras,
+        "drones": drones,
+        "pyrotechnics": pyrotechnics,
+        "night_shoot": night_shoot,
+        "budget_usd": budget_usd
+    }
 
 def create_app():
     from flask import Flask, request, jsonify, send_from_directory, send_file
@@ -123,15 +225,12 @@ def create_app():
     def health(): return jsonify({"status": "ok"})
     return app
 
-
 def generate_docx(text):
-    """Generate a DOCX file from report text using temp file."""
     from docx import Document
     from docx.enum.text import WD_ALIGN_PARAGRAPH
     import tempfile
     
     doc = Document()
-    
     title = doc.add_heading("Production Passport Report", level=0)
     title.alignment = WD_ALIGN_PARAGRAPH.CENTER
     
@@ -168,13 +267,12 @@ def generate_docx(text):
             clean = line.replace('**', '')
             doc.add_paragraph(clean)
     
-    # Save to temp file and read back
     with tempfile.NamedTemporaryFile(suffix='.docx', delete=False) as tmp:
         doc.save(tmp.name)
         with open(tmp.name, 'rb') as f:
             data = f.read()
-        import os
-        os.unlink(tmp.name)
+        import os as o
+        o.unlink(tmp.name)
     return data
 
 if __name__ == "__main__":
