@@ -1,7 +1,7 @@
 """
-Production Passport - Backend Agente Conversacional
-Investiga requisitos de producción cinematográfica por país.
-Usa Parallel Search API + Gemini para generar reportes comparativos.
+Production Passport - Conversational Backend
+Film production intelligence agent.
+Uses Parallel Search API + Gemini to generate comparative reports.
 """
 
 import os
@@ -9,7 +9,7 @@ import json
 import requests
 from typing import Optional
 
-# --- Configuración ---
+# --- Configuration ---
 PARALLEL_API_KEY = os.getenv("PARALLEL_API_KEY", "")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
 PARALLEL_BASE_URL = "https://api.parallel.ai/v1"
@@ -17,9 +17,9 @@ GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta"
 
 
 def parallel_search(query: str) -> dict:
-    """Busca información usando Parallel Search API."""
+    """Search using Parallel Search API."""
     if not PARALLEL_API_KEY:
-        return {"error": "PARALLEL_API_KEY no configurada", "results": []}
+        return {"error": "PARALLEL_API_KEY not configured", "results": []}
     
     response = requests.post(
         f"{PARALLEL_BASE_URL}/search",
@@ -39,9 +39,9 @@ def parallel_search(query: str) -> dict:
 
 
 def parallel_extract(url: str, objective: str = "") -> dict:
-    """Extrae contenido de una URL usando Parallel Extract API."""
+    """Extract content from URL using Parallel Extract API."""
     if not PARALLEL_API_KEY:
-        return {"error": "PARALLEL_API_KEY no configurada", "content": ""}
+        return {"error": "PARALLEL_API_KEY not configured", "content": ""}
     
     response = requests.post(
         f"{PARALLEL_BASE_URL}/extract",
@@ -51,7 +51,7 @@ def parallel_extract(url: str, objective: str = "") -> dict:
         },
         json={
             "urls": [url],
-            "objective": objective or "Extraer información relevante"
+            "objective": objective or "Extract relevant information"
         },
         timeout=30
     )
@@ -60,9 +60,9 @@ def parallel_extract(url: str, objective: str = "") -> dict:
 
 
 def gemini_generate(prompt: str, system_prompt: str = "") -> str:
-    """Genera texto usando Gemini API (Google AI Studio)."""
+    """Generate text using Gemini API (Google AI Studio)."""
     if not GEMINI_API_KEY:
-        return "[GEMINI_API_KEY no configurada - resultado simulado]"
+        return "[GEMINI_API_KEY not configured - simulated result]"
     
     url = f"{GEMINI_BASE_URL}/models/gemini-2.5-flash:generateContent"
     
@@ -92,156 +92,177 @@ def gemini_generate(prompt: str, system_prompt: str = "") -> str:
         return json.dumps(data, indent=2)
 
 
-# --- System Prompt del Agente ---
-SYSTEM_PROMPT = """Eres un experto en producción cinematográfica internacional llamado "Production Passport".
-Tu trabajo es investigar y comparar requisitos de producción (permisos, costos, incentivos fiscales, restricciones) 
-para diferentes países.
+# --- System Prompt ---
+SYSTEM_PROMPT = """You are "Production Passport" — an expert film production intelligence agent.
 
-Cuando recibas una consulta del usuario, debes:
-1. Identificar los requisitos específicos según el tipo de producción mencionado
-2. Investigar por cada país mencionado o sugerir alternativas
-3. Generar un reporte comparativo claro y accionable
+Your job:
+1. Research film production requirements (permits, costs, tax incentives, legal restrictions) across countries
+2. Compare whether it's cheaper to BRING gear/crew from abroad vs HIRE locally
+3. Provide actionable comparative reports with specific recommendations
 
-Siempre incluye:
-- Costos estimados de permisos (en USD)
-- Tiempos de aprobación
-- Requisitos específicos (drones, pirotecnia, menores, etc.)
-- Links a fuentes oficiales cuando estén disponibles
-- Un checklist accionable por país
+When analyzing a production, always include:
+- Permit requirements and costs (in USD)
+- Processing times
+- Key restrictions (drones, pyrotechnics, minors, etc.)
+- Local vendor recommendations (camera crews, lighting, grip, extras agencies, etc.)
+- Bring vs Hire analysis: what's cheaper to import vs rent/buy locally
+- Links to official sources when available
+- Actionable checklist per country
 
-Si no tienes información específica, indícalo claramente y sugiere alternativas.
-Si el usuario no menciona países, sugiere 2-3 opciones viables según el tipo de producción.
+If the user doesn't mention countries, suggest 2-3 viable alternatives based on their production type.
 
-Responde en español por defecto, a menos que el usuario escriba en otro idioma."""
+Respond in clear, professional English. Use tables for comparisons when helpful."""
 
 
-def procesar_consulta(mensaje: str) -> str:
-    """Procesa una consulta conversacional del usuario y genera un reporte."""
+def process_query(message: str) -> str:
+    """Process user query and generate comparative report."""
     
-    # Paso 1: Extraer información del mensaje con Gemini
-    prompt_extraccion = f"""Extrae la siguiente información del mensaje del usuario:
+    # Step 1: Extract production info with Gemini
+    extraction_prompt = f"""Extract the following from the user's message:
 
-Mensaje: "{mensaje}"
+Message: "{message}"
 
-Formato de respuesta (solo JSON, sin texto adicional):
+Respond with ONLY valid JSON (no markdown, no extra text):
 {{
-  "paises": ["pais1", "pais2"],
-  "locacion": "tipo de locación (urbana, natural, interior, patrimonio, aérea)",
-  "extras": número de extras (0 si no se menciona),
+  "countries": ["country1", "country2"],
+  "location_type": "urban/natural/interior/heritage/aerial",
+  "extras": number (0 if not mentioned),
   "drones": true/false,
-  "pirotecnia": true/false,
-  "menores": true/false,
-  "agua": true/false,
-  "armas": true/false,
-  "animales": true/false,
-  "gruas": true/false,
-  "nocturno": true/false,
-  "presupuesto": presupuesto en USD (0 si no se menciona)
+  "pyrotechnics": true/false,
+  "minors": true/false,
+  "water": true/false,
+  "weapons": true/false,
+  "animals": true/false,
+  "cranes": true/false,
+  "night_shoot": true/false,
+  "budget_usd": number (0 if not mentioned),
+  "gear_needed": ["camera", "lighting", "grip", "sound", "other"],
+  "crew_needed": ["dp", "gaffer", "grip", "sound", "other"]
 }}"""
 
     try:
-        extraccion_json = gemini_generate(prompt_extraccion, "Eres un extractor de información. Responde solo con JSON válido.")
-        # Limpiar el JSON si viene con markdown
-        extraccion_json = extraccion_json.replace("```json", "").replace("```", "").strip()
-        desglose = json.loads(extraccion_json)
+        extraction_json = gemini_generate(extraction_prompt, "You are an information extractor. Respond ONLY with valid JSON.")
+        extraction_json = extraction_json.replace("```json", "").replace("```", "").strip()
+        data = json.loads(extraction_json)
     except:
-        # Fallback: usar valores por defecto
-        desglose = {
-            "paises": ["Mexico", "Colombia"],
-            "locacion": "urbana",
+        data = {
+            "countries": ["Mexico", "Colombia"],
+            "location_type": "urban",
             "extras": 0,
             "drones": False,
-            "pirotecnia": False,
-            "menores": False,
-            "agua": False,
-            "armas": False,
-            "animales": False,
-            "gruas": False,
-            "nocturno": False,
-            "presupuesto": 0
+            "pyrotechnics": False,
+            "minors": False,
+            "water": False,
+            "weapons": False,
+            "animals": False,
+            "cranes": False,
+            "night_shoot": False,
+            "budget_usd": 0,
+            "gear_needed": [],
+            "crew_needed": []
         }
 
-    # Asegurar que haya países
-    if not desglose.get("paises"):
-        desglose["paises"] = ["Mexico", "Colombia", "Spain"]
+    if not data.get("countries"):
+        data["countries"] = ["Mexico", "Colombia", "Spain"]
 
-    # Paso 2: Investigar cada país
-    investigaciones = []
-    for pais in desglose["paises"]:
-        elementos = []
-        if desglose.get("drones"):
-            elementos.append("drones")
-        if desglose.get("pirotecnia"):
-            elementos.append("pirotecnia")
-        if desglose.get("menores"):
-            elementos.append("menores")
-        if desglose.get("agua"):
-            elementos.append("agua")
-        if desglose.get("armas"):
-            elementos.append("armas")
+    # Step 2: Research each country
+    research = []
+    for country in data["countries"]:
+        elements = []
+        if data.get("drones"):
+            elements.append("drones")
+        if data.get("pyrotechnics"):
+            elements.append("pyrotechnics")
+        if data.get("minors"):
+            elements.append("minors")
+        if data.get("water"):
+            elements.append("water")
+        if data.get("weapons"):
+            elements.append("weapons")
         
-        query_elementos = ", ".join(elementos) if elementos else "filmación general"
-        query = f"film production permits {pais} {query_elementos} requirements costs 2025"
+        elements_str = ", ".join(elements) if elements else "general filming"
         
+        # Search for permits
+        permit_query = f"film production permits {country} {elements_str} requirements costs 2025"
+        
+        # Search for local vendors
+        vendor_query = f"film production crew hire {country} camera lighting grip rental companies 2025"
+        
+        contents = []
         try:
-            resultados = parallel_search(query)
-            contenidos = []
-            for resultado in resultados.get("results", [])[:3]:
-                url = resultado.get("url", "")
+            # Permit search
+            permit_results = parallel_search(permit_query)
+            for result in permit_results.get("results", [])[:2]:
+                url = result.get("url", "")
                 if url:
-                    extract = parallel_extract(url, query)
-                    contenidos.append({
+                    extract = parallel_extract(url, permit_query)
+                    contents.append({
                         "url": url,
-                        "titulo": resultado.get("title", ""),
-                        "contenido": extract.get("results", [{}])[0].get("excerpts", [""])[0][:1500] if extract.get("results") else ""
+                        "title": result.get("title", ""),
+                        "content": extract.get("results", [{}])[0].get("excerpts", [""])[0][:1500] if extract.get("results") else ""
                     })
-            investigaciones.append({
-                "pais": pais,
-                "contenidos": contenidos
-            })
+            
+            # Vendor search
+            vendor_results = parallel_search(vendor_query)
+            for result in vendor_results.get("results", [])[:2]:
+                url = result.get("url", "")
+                if url:
+                    extract = parallel_extract(url, vendor_query)
+                    contents.append({
+                        "url": url,
+                        "title": result.get("title", ""),
+                        "content": extract.get("results", [{}])[0].get("excerpts", [""])[0][:1500] if extract.get("results") else ""
+                    })
         except:
-            investigaciones.append({
-                "pais": pais,
-                "contenidos": []
-            })
+            pass
+        
+        research.append({
+            "country": country,
+            "contents": contents
+        })
 
-    # Paso 3: Generar reporte final con Gemini
-    prompt_reporte = f"""Genera un reporte comparativo de producción cinematográfica.
+    # Step 3: Generate final report
+    report_prompt = f"""Generate a comprehensive film production comparison report.
 
-CONSULTA ORIGINAL DEL USUARIO: "{mensaje}"
+USER QUERY: "{message}"
 
-DESGLOSE DETECTADO:
-- Países: {', '.join(desglose['paises'])}
-- Locación: {desglose['locacion']}
-- Extras: {desglose['extras']}
-- Drones: {'Sí' if desglose['drones'] else 'No'}
-- Pirotecnia: {'Sí' if desglose['pirotecnia'] else 'No'}
-- Presupuesto: ${desglose['presupuesto']:,} USD
+EXTRACTED DETAILS:
+- Countries: {', '.join(data['countries'])}
+- Location: {data['location_type']}
+- Extras: {data['extras']}
+- Drones: {'Yes' if data['drones'] else 'No'}
+- Pyrotechnics: {'Yes' if data['pyrotechnics'] else 'No'}
+- Budget: ${data['budget_usd']:,} USD
+- Gear needed: {', '.join(data['gear_needed']) if data['gear_needed'] else 'Not specified'}
+- Crew needed: {', '.join(data['crew_needed']) if data['crew_needed'] else 'Not specified'}
 
-INFORMACIÓN INVESTIGADA:
+RESEARCH DATA:
 """
 
-    for inv in investigaciones:
-        prompt_reporte += f"\n--- {inv['pais']} ---\n"
-        for contenido in inv.get("contenidos", []):
-            prompt_reporte += f"Fuente: {contenido['titulo']}\nURL: {contenido['url']}\n{contenido['contenido'][:500]}\n\n"
+    for r in research:
+        report_prompt += f"\n--- {r['country']} ---\n"
+        for c in r.get("contents", []):
+            report_prompt += f"Source: {c['title']}\nURL: {c['url']}\n{c['content'][:500]}\n\n"
 
-    prompt_reporte += """
-FORMATO DEL REPORTE:
-1. Resumen ejecutivo (2-3 líneas)
-2. Tabla comparativa con columnas: País | Costo Estimado | Tiempo | Requisitos Clave | Riesgo
-3. Detalle por país con checklist accionable
-4. Recomendación final
+    report_prompt += """
+REPORT FORMAT:
+1. Executive Summary (2-3 sentences)
+2. Comparison Table: Country | Permit Cost | Processing Time | Key Restrictions | Risk Level
+3. Bring vs Hire Analysis:
+   - What's cheaper to bring from abroad vs hire locally
+   - Local vendor recommendations (crews, gear rental, extras agencies)
+   - Estimated savings with local hiring
+4. Country-specific details with actionable checklist
+5. Final recommendation
 
-Sé conciso pero completo. Incluye los URLs de las fuentes cuando estén disponibles.
-Si la información es limitada, indícalo y sugiere contactar autoridades locales."""
+Be specific with numbers when possible. Include source URLs. If data is limited, say so and recommend contacting local authorities."""
 
-    reporte = gemini_generate(prompt_reporte, SYSTEM_PROMPT)
+    report = gemini_generate(report_prompt, SYSTEM_PROMPT)
     
-    return reporte
+    return report
 
 
-# --- API simple con Flask ---
+# --- Flask API ---
 def create_app():
     from flask import Flask, request, jsonify, send_from_directory
     from flask_cors import CORS
@@ -257,14 +278,14 @@ def create_app():
     @app.route("/api/chat", methods=["POST"])
     def chat():
         data = request.json
-        mensaje = data.get("message", "")
+        message = data.get("message", "")
         
-        if not mensaje:
-            return jsonify({"success": False, "error": "Mensaje vacío"}), 400
+        if not message:
+            return jsonify({"success": False, "error": "Empty message"}), 400
         
         try:
-            respuesta = procesar_consulta(mensaje)
-            return jsonify({"success": True, "response": respuesta})
+            response = process_query(message)
+            return jsonify({"success": True, "response": response})
         except Exception as e:
             return jsonify({"success": False, "error": str(e)}), 500
     

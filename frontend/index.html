@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Production Passport - Agente de Producción</title>
+    <title>Production Passport - Film Production Agent</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
@@ -27,14 +27,14 @@
     <header class="border-b border-slate-800/50 backdrop-blur-sm bg-slate-900/50 sticky top-0 z-10">
         <div class="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
             <div class="flex items-center gap-3">
-                <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-xl">🎬</div>
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-xl glow">🎬</div>
                 <div>
                     <h1 class="text-lg font-semibold">Production Passport</h1>
-                    <p class="text-xs text-slate-400">Agente de producción cinematográfica</p>
+                    <p class="text-xs text-slate-400">Film Production Intelligence Agent</p>
                 </div>
             </div>
             <div class="flex items-center gap-2">
-                <span class="px-2 py-1 rounded-full bg-emerald-500/10 text-emerald-400 text-xs font-medium border border-emerald-500/20">● En línea</span>
+                <span class="px-2 py-1 rounded-full bg-emerald-500/10 text-emerald-400 text-xs font-medium border border-emerald-500/20">● Online</span>
             </div>
         </div>
     </header>
@@ -48,12 +48,12 @@
                 <div class="w-9 h-9 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-sm flex-shrink-0">🎬</div>
                 <div class="flex-1 space-y-3">
                     <div class="bg-slate-800/50 rounded-2xl rounded-tl-sm px-5 py-4 border border-slate-700/50">
-                        <p class="text-slate-200 leading-relaxed">¡Hola! Soy tu agente de producción cinematográfica. Puedo investigar requisitos de filmación, permisos, costos e incentivos fiscales en cualquier país.</p>
-                        <p class="text-slate-400 text-sm mt-2">Cuéntame sobre tu producción. Por ejemplo:</p>
-                        <ul class="text-slate-400 text-sm mt-2 space-y-1">
-                            <li class="flex items-center gap-2"><span class="text-indigo-400">→</span> "Necesito filmar en una plaza colonial con 50 extras y drones"</li>
-                            <li class="flex items-center gap-2"><span class="text-indigo-400">→</span> "Quiero comparar México vs Colombia para una escena con pirotecnia"</li>
-                            <li class="flex items-center gap-2"><span class="text-indigo-400">→</span> "¿Cuánto cuesta filmar en España con 100 extras?"</li>
+                        <p class="text-slate-200 leading-relaxed">Hey! I'm your film production intelligence agent. I research permits, costs, tax incentives, and local vendor options across countries — and tell you whether it's cheaper to bring your gear or hire locally.</p>
+                        <p class="text-slate-400 text-sm mt-3">Tell me about your production. For example:</p>
+                        <ul class="text-slate-400 text-sm mt-2 space-y-1.5">
+                            <li class="flex items-center gap-2"><span class="text-indigo-400">→</span> "I need to shoot in a colonial square with 50 extras and drones"</li>
+                            <li class="flex items-center gap-2"><span class="text-indigo-400">→</span> "Comparing Mexico vs Colombia for a night scene with pyrotechnics"</li>
+                            <li class="flex items-center gap-2"><span class="text-indigo-400">→</span> "What's cheaper: bring my camera crew to Bogotá or hire locally?"</li>
                         </ul>
                     </div>
                 </div>
@@ -68,7 +68,7 @@
                     <textarea 
                         id="userInput" 
                         rows="1"
-                        placeholder="Describe tu producción... (ej: Necesito filmar en Bogotá con drones y 30 extras)"
+                        placeholder="Describe your production... (e.g., I need to film in Tokyo with drones and 30 extras)"
                         class="w-full bg-slate-800 border border-slate-700 rounded-xl px-5 py-4 pr-14 text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 resize-none transition-all"
                         onkeydown="handleKeyDown(event)"
                         oninput="autoResize(this)"
@@ -118,11 +118,16 @@
                 ? 'bg-indigo-600/20 border-indigo-500/30 rounded-2xl rounded-tr-sm' 
                 : 'bg-slate-800/50 border-slate-700/50 rounded-2xl rounded-tl-sm';
             
+            // Convert markdown-style bold to HTML
+            const formattedContent = content
+                .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                .replace(/\n/g, '<br>');
+            
             div.innerHTML = `
                 ${avatar}
                 <div class="flex-1 max-w-[85%]">
                     <div class="${bubbleClass} border px-5 py-4">
-                        <div class="text-slate-200 leading-relaxed whitespace-pre-wrap">${content}</div>
+                        <div class="text-slate-200 leading-relaxed">${formattedContent}</div>
                     </div>
                 </div>
             `;
@@ -158,12 +163,10 @@
             const text = userInput.value.trim();
             if (!text || isLoading) return;
 
-            // Add user message
             addMessage(text, true);
             userInput.value = '';
             userInput.style.height = 'auto';
             
-            // Show typing
             addTypingIndicator();
             isLoading = true;
             sendBtn.disabled = true;
@@ -181,11 +184,11 @@
                 if (data.success) {
                     addMessage(data.response);
                 } else {
-                    addMessage('Lo siento, tuve un error procesando tu solicitud. ¿Puedes intentar de nuevo?');
+                    addMessage('Sorry, I had trouble processing your request. Could you try again?');
                 }
             } catch (err) {
                 removeTypingIndicator();
-                addMessage('Error de conexión. Verifica tu internet e intenta de nuevo.');
+                addMessage('Connection error. Please check your internet and try again.');
             }
 
             isLoading = false;
