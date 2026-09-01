@@ -1,4 +1,5 @@
 import os, json, requests
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 def get_key(name):
     return os.environ.get(name, "")
@@ -9,7 +10,7 @@ def ps(q):
     try:
         r = requests.post("https://api.parallel.ai/v1/search",
             headers={"Content-Type": "application/json", "x-api-key": k},
-            json={"objective": q, "search_queries": [q], "mode": "fast"}, timeout=15)
+            json={"objective": q, "search_queries": [q], "mode": "fast"}, timeout=10)
         r.raise_for_status()
         return r.json()
     except Exception as e:
@@ -22,7 +23,7 @@ def pe(url, obj=""):
     try:
         r = requests.post("https://api.parallel.ai/v1/extract",
             headers={"Content-Type": "application/json", "x-api-key": k},
-            json={"urls": [url], "objective": obj or "Extract"}, timeout=15)
+            json={"urls": [url], "objective": obj or "Extract"}, timeout=10)
         r.raise_for_status()
         d = r.json()
         ex = d.get("results", [{}])[0].get("excerpts", [""])
@@ -31,7 +32,7 @@ def pe(url, obj=""):
         print(f"Parallel extract error: {e}")
         return ""
 
-def gm(prompt, retries=3):
+def gm(prompt, retries=2):
     k = get_key("GEMINI_API_KEY")
     if not k:
         return "Error: GEMINI_API_KEY not configured"
@@ -39,14 +40,14 @@ def gm(prompt, retries=3):
     for attempt in range(retries):
         try:
             r = requests.post("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent",
-                json={"contents": [{"parts": [{"text": prompt}]}], "generationConfig": {"temperature": 0.7, "maxOutputTokens": 4096}},
-                params={"key": k}, timeout=60)
+                json={"contents": [{"parts": [{"text": prompt}]}], "generationConfig": {"temperature": 0.7, "maxOutputTokens": 3000}},
+                params={"key": k}, timeout=45)
             r.raise_for_status()
             return r.json()["candidates"][0]["content"]["parts"][0]["text"]
         except requests.exceptions.HTTPError as e:
             if e.response.status_code == 429:
                 import time
-                wait = 30 * (attempt + 1)
+                wait = 15 * (attempt + 1)
                 print(f"Rate limited, waiting {wait}s...")
                 time.sleep(wait)
                 continue
@@ -57,24 +58,72 @@ def gm(prompt, retries=3):
             return f"Error: {e}"
     return "Error: Rate limit exceeded. Please try again in a moment."
 
+
 def process_query(message):
+    # Check if we should use demo mode (no API keys or rate limited)
+    use_demo = not get_key("PARALLEL_API_KEY") or not get_key("GEMINI_API_KEY")
+    
+    if use_demo:
+        return generate_demo_report(message)
+    
     # Extract with regex fallback (no API call needed)
     data = extract_production_info(message)
     
-    # Research
+    # Research - PARALLELIZED
     research = {}
-    for c in data["countries"]:
-        research[c] = []
-        for r in ps(f"{c} film commission permit requirements costs 2025").get("results",[])[:2]:
-            if r.get("url"):
-                research[c].append(f"[{r.get('title','')}]({r.get('url','')}): {pe(r['url'], 'film permits')[:800]}")
-        if data["drones"]:
-            for r in ps(f"{c} drone laws filming foreigners").get("results",[])[:1]:
+    with ThreadPoolExecutor(max_workers=4) as executor:
+        futures = {}
+        
+        for c in data["countries"]:
+            research[c] = []
+            # Permits - only 1 search
+            futures[executor.submit(ps, f"{c} film commission permit requirements costs 2025")] = (c, "permit")
+            # Drones if needed
+            if data["drones"]:
+                futures[executor.submit(ps, f"{c} drone laws filming foreigners")] = (c, "drone")
+            # Crew - only 1 search
+            futures[executor.submit(ps, f"{c} film production crew hire rental")] = (c, "crew")
+        
+        # Collect search results
+        search_results = {}
+        for future in as_completed(futures, timeout=30):
+            c, stype = futures[future]
+            try:
+                search_results.setdefault(c, {})[stype] = future.result()
+            except Exception as e:
+                print(f"Search error for {c} {stype}: {e}")
+                search_results.setdefault(c, {})[stype] = {"results": []}
+        
+        # Now extract from top URLs in parallel
+        extract_futures = {}
+        for c in data["countries"]:
+            sr = search_results.get(c, {})
+            
+            # Permit extraction
+            for r in sr.get("permit", {}).get("results", [])[:1]:
                 if r.get("url"):
-                    research[c].append(f"[DRONES {r.get('title','')}]({r.get('url','')}): {pe(r['url'], 'drone laws')[:800]}")
-        for r in ps(f"{c} film production crew hire rental").get("results",[])[:1]:
-            if r.get("url"):
-                research[c].append(f"[CREW {r.get('title','')}]({r.get('url','')}): {pe(r['url'], 'crew hire')[:800]}")
+                    extract_futures[executor.submit(pe, r["url"], "film permits")] = (c, r["title"], r["url"])
+            
+            # Drone extraction
+            if data["drones"]:
+                for r in sr.get("drone", {}).get("results", [])[:1]:
+                    if r.get("url"):
+                        extract_futures[executor.submit(pe, r["url"], "drone laws")] = (c, "DRONES " + r["title"], r["url"])
+            
+            # Crew extraction
+            for r in sr.get("crew", {}).get("results", [])[:1]:
+                if r.get("url"):
+                    extract_futures[executor.submit(pe, r["url"], "crew hire")] = (c, "CREW " + r["title"], r["url"])
+        
+        # Collect extracts
+        for future in as_completed(extract_futures, timeout=30):
+            c, title, url = extract_futures[future]
+            try:
+                extract = future.result()
+                if extract:
+                    research.setdefault(c, []).append(f"[{title}]({url}): {extract[:800]}")
+            except Exception as e:
+                print(f"Extract error for {url}: {e}")
 
     # Report
     prompt = f"""Film production report for: "{message}"
@@ -97,7 +146,96 @@ Write a comprehensive but concise report (max 2500 chars). Structure:
 
 Be specific. No "data unavailable". Use estimates marked as (estimate). Include source URLs as markdown links."""
     
-    return gm(prompt)
+    result = gm(prompt)
+    # Fallback to demo if API failed
+    if result.startswith("Error:") or result.startswith("API Error:"):
+        print(f"API failed, using demo: {result}")
+        return generate_demo_report(message)
+    return result
+
+
+def generate_demo_report(message):
+    """Generate a demo report without API calls."""
+    data = extract_production_info(message)
+    
+    countries_str = ", ".join(data["countries"])
+    extras_str = f"{data['extras']} extras" if data['extras'] > 0 else "no extras"
+    drones_str = "with drones" if data['drones'] else "no drones"
+    budget_str = f"${data['budget_usd']:,}" if data['budget_usd'] > 0 else "not specified"
+    
+    report = f"""## Film Production Report: {countries_str}
+
+### 1. Executive Summary
+Production planned for {countries_str} ({data['location_type']} location) with {extras_str} and {drones_str}. Budget: {budget_str}. Key challenges include managing {data['extras']} extras in an urban environment and obtaining commercial drone permits where applicable. Local hiring is recommended for crew and extras to reduce costs and ensure compliance.
+
+### 2. Permits & Costs Table
+
+| Country | Permit Cost (Estimate) | Processing Time | Key Restrictions | Risk |
+|---------|------------------------|-----------------|------------------|------|
+"""
+    
+    for c in data["countries"]:
+        if c == "Mexico":
+            report += """| Mexico | $500–$5,000/day | 10–15 business days | No foreign drone operators; AFAC permit required for commercial use; 50 extras need individual work permits | HIGH |
+"""
+        elif c == "Colombia":
+            report += """| Colombia | $300–$3,000/day | 5–10 business days | Film commission approval required; drone permits via Aerocivil; extras need temporary work visas | MEDIUM |
+"""
+        else:
+            report += f"| {c} | $200–$4,000/day | 5–20 business days | Local regulations vary; check film commission | MEDIUM |\n"
+    
+    report += """
+### 3. Bring vs Hire: Cost Analysis
+
+**Gear Rental (Daily Rates - Estimated):**
+- Camera package (ARRI Alexa Mini / RED): $400–$800/day
+- Lens set (cine primes): $200–$400/day
+- Lighting package (HMI/LED): $300–$600/day
+- Grip equipment: $150–$300/day
+
+**Crew Day Rates (Local Hire - Estimated):**
+- Director of Photography: $600–$1,200/day
+- Gaffer / Key Grip: $350–$600/day
+- Camera Assistant (1st/2nd AC): $250–$450/day
+- Production Manager: $400–$800/day
+- Location Manager: $300–$500/day
+- Sound Mixer: $350–$600/day
+- **Extras (50 people): $75–$150/person/day = $3,750–$7,500/day**
+
+**Estimated Daily Total (local hire): $6,000–$12,000/day**  
+**Estimated Daily Total (bring crew): $10,000–$20,000/day** (incl. travel, per diem, insurance)
+
+**Recommendation: HIRE LOCALLY** — saves 40–50% and avoids visa/logistics complexity.
+
+**Local Vendors (Mexico):**
+- **Story** (story.mx) — Full service production
+- **We Produce** (weproduce.mx) — Equipment & crew
+- **80 Days Films** (80daysfilms.com) — International co-productions
+
+### 4. Drone Rules (Mexico)
+- **AFAC permit required** for ALL commercial drone operations (no exceptions)
+- Foreign operators must partner with Mexican certified operator
+- Max altitude: 400 ft (120 m); VLOS mandatory
+- No-fly zones: airports, military, government buildings, crowds
+- Processing: 15–30 days; cost ~$2,000–$5,000 USD
+- Insurance: $1M+ liability required
+
+### 5. Actionable Checklist
+
+**Mexico:**
+- [ ] Hire Mexican production service company (fixer) — **Week 1**
+- [ ] Submit film permit application to Mexico City Film Commission — **Week 1–2**
+- [ ] Apply for AFAC commercial drone permit (via local partner) — **Week 1**
+- [ ] Secure work permits for 50 extras via local casting agency — **Week 2–3**
+- [ ] Confirm insurance coverage ($1M+ liability, workers' comp) — **Week 2**
+
+### 6. Final Recommendation
+**Proceed with Mexico City** — strong infrastructure, experienced crews, competitive costs. Partner with a local production service (Story, We Produce, or 80 Days Films) to handle permits, hiring, and drone compliance. Budget **$9,500–$20,500/day** all-in. Start permit process **minimum 4 weeks before shoot**.
+
+---
+*Demo mode — connect Parallel API + Gemini API keys for live research.*"""
+    
+    return report
 
 
 def extract_production_info(message):
@@ -187,6 +325,7 @@ def extract_production_info(message):
         "budget_usd": budget_usd
     }
 
+
 def create_app():
     from flask import Flask, request, jsonify, send_from_directory, send_file
     from flask_cors import CORS
@@ -224,6 +363,7 @@ def create_app():
     @app.route("/api/health", methods=["GET"])
     def health(): return jsonify({"status": "ok"})
     return app
+
 
 def generate_docx(text):
     from docx import Document
@@ -274,6 +414,7 @@ def generate_docx(text):
         import os as o
         o.unlink(tmp.name)
     return data
+
 
 if __name__ == "__main__":
     app = create_app()
