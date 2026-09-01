@@ -3,191 +3,194 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Production Passport - Agente de Producción Cinematográfica</title>
+    <title>Production Passport - Agente de Producción</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        .loading { animation: pulse 1.5s infinite; }
-        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+        body { font-family: 'Inter', sans-serif; }
+        .chat-bubble { animation: fadeIn 0.3s ease-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+        .typing-dot { animation: typing 1.4s infinite; }
+        .typing-dot:nth-child(2) { animation-delay: 0.2s; }
+        .typing-dot:nth-child(3) { animation-delay: 0.4s; }
+        @keyframes typing { 0%, 60%, 100% { transform: translateY(0); } 30% { transform: translateY(-4px); } }
+        .gradient-bg { background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%); }
+        .glow { box-shadow: 0 0 40px rgba(99, 102, 241, 0.15); }
+        .scrollbar-thin::-webkit-scrollbar { width: 6px; }
+        .scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
+        .scrollbar-thin::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
     </style>
 </head>
-<body class="bg-gray-900 text-white min-h-screen">
-    <div class="container mx-auto px-4 py-8 max-w-4xl">
-        <!-- Header -->
-        <header class="text-center mb-10">
-            <h1 class="text-4xl font-bold mb-2">🎬 Production Passport</h1>
-            <p class="text-gray-400">Agente inteligente para investigación de producción cinematográfica internacional</p>
-            <p class="text-sm text-gray-500 mt-1">Powered by Gemini Enterprise + Parallel Web Systems</p>
-        </header>
+<body class="gradient-bg text-white min-h-screen flex flex-col">
+    
+    <!-- Header -->
+    <header class="border-b border-slate-800/50 backdrop-blur-sm bg-slate-900/50 sticky top-0 z-10">
+        <div class="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-xl">🎬</div>
+                <div>
+                    <h1 class="text-lg font-semibold">Production Passport</h1>
+                    <p class="text-xs text-slate-400">Agente de producción cinematográfica</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-2">
+                <span class="px-2 py-1 rounded-full bg-emerald-500/10 text-emerald-400 text-xs font-medium border border-emerald-500/20">● En línea</span>
+            </div>
+        </div>
+    </header>
 
-        <!-- Formulario -->
-        <div class="bg-gray-800 rounded-lg p-6 mb-8">
-            <h2 class="text-xl font-semibold mb-4">Desglose de Producción</h2>
+    <!-- Chat Area -->
+    <main class="flex-1 overflow-hidden flex flex-col max-w-4xl mx-auto w-full">
+        <div id="chatContainer" class="flex-1 overflow-y-auto px-4 py-6 space-y-6 scrollbar-thin">
             
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <!-- Locación -->
-                <div>
-                    <label class="block text-sm text-gray-400 mb-1">Tipo de Locación</label>
-                    <select id="locacion" class="w-full bg-gray-700 rounded px-3 py-2 text-white">
-                        <option value="urbana">Urbana (ciudad)</option>
-                        <option value="natural">Natural (montaña, bosque, playa)</option>
-                        <option value="interior">Interior (estudio, locación cerrada)</option>
-                        <option value="patrimonio">Patrimonio histórico/cultural</option>
-                        <option value="aerea">Aérea (drones, helicópteros)</option>
-                    </select>
-                </div>
-
-                <!-- Extras -->
-                <div>
-                    <label class="block text-sm text-gray-400 mb-1">Número de Extras</label>
-                    <input type="number" id="extras" value="10" min="0" max="1000" class="w-full bg-gray-700 rounded px-3 py-2 text-white">
-                </div>
-
-                <!-- Presupuesto -->
-                <div>
-                    <label class="block text-sm text-gray-400 mb-1">Presupuesto Estimado (USD)</label>
-                    <input type="number" id="presupuesto" value="50000" min="0" step="1000" class="w-full bg-gray-700 rounded px-3 py-2 text-white">
-                </div>
-
-                <!-- Países -->
-                <div>
-                    <label class="block text-sm text-gray-400 mb-1">Países a Comparar</label>
-                    <input type="text" id="paises" value="Mexico, Colombia, Spain" class="w-full bg-gray-700 rounded px-3 py-2 text-white" placeholder="Mexico, Colombia, Spain">
+            <!-- Welcome Message -->
+            <div class="chat-bubble flex gap-4">
+                <div class="w-9 h-9 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-sm flex-shrink-0">🎬</div>
+                <div class="flex-1 space-y-3">
+                    <div class="bg-slate-800/50 rounded-2xl rounded-tl-sm px-5 py-4 border border-slate-700/50">
+                        <p class="text-slate-200 leading-relaxed">¡Hola! Soy tu agente de producción cinematográfica. Puedo investigar requisitos de filmación, permisos, costos e incentivos fiscales en cualquier país.</p>
+                        <p class="text-slate-400 text-sm mt-2">Cuéntame sobre tu producción. Por ejemplo:</p>
+                        <ul class="text-slate-400 text-sm mt-2 space-y-1">
+                            <li class="flex items-center gap-2"><span class="text-indigo-400">→</span> "Necesito filmar en una plaza colonial con 50 extras y drones"</li>
+                            <li class="flex items-center gap-2"><span class="text-indigo-400">→</span> "Quiero comparar México vs Colombia para una escena con pirotecnia"</li>
+                            <li class="flex items-center gap-2"><span class="text-indigo-400">→</span> "¿Cuánto cuesta filmar en España con 100 extras?"</li>
+                        </ul>
+                    </div>
                 </div>
             </div>
 
-            <!-- Checkboxes -->
-            <div class="mt-4 grid grid-cols-2 md:grid-cols-4 gap-3">
-                <label class="flex items-center gap-2 cursor-pointer">
-                    <input type="checkbox" id="drones" class="rounded bg-gray-700">
-                    <span class="text-sm">🚁 Drones</span>
-                </label>
-                <label class="flex items-center gap-2 cursor-pointer">
-                    <input type="checkbox" id="pirotecnia" class="rounded bg-gray-700">
-                    <span class="text-sm">💥 Pirotecnia</span>
-                </label>
-                <label class="flex items-center gap-2 cursor-pointer">
-                    <input type="checkbox" id="menores" class="rounded bg-gray-700">
-                    <span class="text-sm">👶 Menores</span>
-                </label>
-                <label class="flex items-center gap-2 cursor-pointer">
-                    <input type="checkbox" id="agua" class="rounded bg-gray-700">
-                    <span class="text-sm">🌊 Agua</span>
-                </label>
-                <label class="flex items-center gap-2 cursor-pointer">
-                    <input type="checkbox" id="armas" class="rounded bg-gray-700">
-                    <span class="text-sm">🔫 Armas</span>
-                </label>
-                <label class="flex items-center gap-2 cursor-pointer">
-                    <input type="checkbox" id="animales" class="rounded bg-gray-700">
-                    <span class="text-sm">🐴 Animales</span>
-                </label>
-                <label class="flex items-center gap-2 cursor-pointer">
-                    <input type="checkbox" id="gruas" class="rounded bg-gray-700">
-                    <span class="text-sm">🏗️ Grúas</span>
-                </label>
-                <label class="flex items-center gap-2 cursor-pointer">
-                    <input type="checkbox" id="nocturno" class="rounded bg-gray-700">
-                    <span class="text-sm">🌙 Nocturno</span>
-                </label>
+        </div>
+
+        <!-- Input Area -->
+        <div class="border-t border-slate-800/50 bg-slate-900/80 backdrop-blur-sm px-4 py-4 sticky bottom-0">
+            <div class="max-w-4xl mx-auto">
+                <div class="relative">
+                    <textarea 
+                        id="userInput" 
+                        rows="1"
+                        placeholder="Describe tu producción... (ej: Necesito filmar en Bogotá con drones y 30 extras)"
+                        class="w-full bg-slate-800 border border-slate-700 rounded-xl px-5 py-4 pr-14 text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 resize-none transition-all"
+                        onkeydown="handleKeyDown(event)"
+                        oninput="autoResize(this)"
+                    ></textarea>
+                    <button 
+                        id="sendBtn"
+                        onclick="sendMessage()"
+                        class="absolute right-2 bottom-2 w-10 h-10 rounded-lg bg-indigo-600 hover:bg-indigo-500 flex items-center justify-center transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/>
+                        </svg>
+                    </button>
+                </div>
+                <p class="text-xs text-slate-500 mt-2 text-center">Powered by Gemini + Parallel Web Systems | Agentic Cinema Hackathon</p>
             </div>
-
-            <!-- Botón -->
-            <button onclick="investigar()" id="btnInvestigar" class="mt-6 w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors">
-                🔍 Investigar Requisitos de Producción
-            </button>
-        </div>
-
-        <!-- Resultados -->
-        <div id="resultados" class="hidden">
-            <div class="bg-gray-800 rounded-lg p-6">
-                <h2 class="text-xl font-semibold mb-4">📋 Reporte Comparativo</h2>
-                <div id="reporte" class="prose prose-invert max-w-none"></div>
-            </div>
-        </div>
-
-        <!-- Loading -->
-        <div id="loading" class="hidden text-center py-12">
-            <div class="loading text-2xl">🎬 Investigando requisitos de producción...</div>
-            <p class="text-gray-500 mt-2">Esto puede tomar 30-60 segundos</p>
-        </div>
-
-        <!-- Error -->
-        <div id="error" class="hidden bg-red-900/50 border border-red-500 rounded-lg p-4 mt-4">
-            <p id="errorMsg" class="text-red-300"></p>
         </div>
     </div>
 
     <script>
-        async function investigar() {
-            const btn = document.getElementById('btnInvestigar');
-            const loading = document.getElementById('loading');
-            const resultados = document.getElementById('resultados');
-            const reporte = document.getElementById('reporte');
-            const error = document.getElementById('error');
-            const errorMsg = document.getElementById('errorMsg');
+        const chatContainer = document.getElementById('chatContainer');
+        const userInput = document.getElementById('userInput');
+        const sendBtn = document.getElementById('sendBtn');
+        let isLoading = false;
 
-            // Recopilar datos
-            const desglose = {
-                locacion: document.getElementById('locacion').value,
-                extras: parseInt(document.getElementById('extras').value) || 0,
-                presupuesto: parseInt(document.getElementById('presupuesto').value) || 0,
-                drones: document.getElementById('drones').checked,
-                pirotecnia: document.getElementById('pirotecnia').checked,
-                menores: document.getElementById('menores').checked,
-                agua: document.getElementById('agua').checked,
-                armas: document.getElementById('armas').checked,
-                animales: document.getElementById('animales').checked,
-                gruas: document.getElementById('gruas').checked,
-                nocturno: document.getElementById('nocturno').checked
-            };
+        function autoResize(el) {
+            el.style.height = 'auto';
+            el.style.height = Math.min(el.scrollHeight, 120) + 'px';
+        }
 
-            const paises = document.getElementById('paises').value.split(',').map(p => p.trim()).filter(p => p);
-
-            // UI state
-            btn.disabled = true;
-            btn.textContent = '⏳ Investigando...';
-            loading.classList.remove('hidden');
-            resultados.classList.add('hidden');
-            error.classList.add('hidden');
-
-            try {
-                const response = await fetch('/api/investigar', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ desglose, paises })
-                });
-
-                const data = await response.json();
-
-                if (data.success) {
-                    reporte.innerHTML = formatoReporte(data.reporte);
-                    resultados.classList.remove('hidden');
-                } else {
-                    errorMsg.textContent = data.error || 'Error desconocido';
-                    error.classList.remove('hidden');
-                }
-            } catch (err) {
-                errorMsg.textContent = 'Error de conexión: ' + err.message;
-                error.classList.remove('hidden');
-            } finally {
-                btn.disabled = false;
-                btn.textContent = '🔍 Investigar Requisitos de Producción';
-                loading.classList.add('hidden');
+        function handleKeyDown(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
             }
         }
 
-        function formatoReporte(texto) {
-            // Convertir markdown básico a HTML
-            return texto
-                .replace(/^### (.*$)/gm, '<h3 class="text-lg font-semibold mt-4 mb-2">$1</h3>')
-                .replace(/^## (.*$)/gm, '<h2 class="text-xl font-semibold mt-4 mb-2">$1</h2>')
-                .replace(/^# (.*$)/gm, '<h1 class="text-2xl font-bold mt-4 mb-2">$1</h1>')
-                .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-                .replace(/\*(.*?)\*/g, '<em>$1</em>')
-                .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" class="text-blue-400 hover:underline">$1</a>')
-                .replace(/^- (.*$)/gm, '<li class="ml-4">$1</li>')
-                .replace(/\n\n/g, '</p><p class="mb-2">')
-                .replace(/\n/g, '<br>');
+        function addMessage(content, isUser = false) {
+            const div = document.createElement('div');
+            div.className = 'chat-bubble flex gap-4' + (isUser ? ' flex-row-reverse' : '');
+            
+            const avatar = isUser 
+                ? `<div class="w-9 h-9 rounded-full bg-slate-700 flex items-center justify-center text-sm flex-shrink-0">👤</div>`
+                : `<div class="w-9 h-9 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-sm flex-shrink-0">🎬</div>`;
+            
+            const bubbleClass = isUser 
+                ? 'bg-indigo-600/20 border-indigo-500/30 rounded-2xl rounded-tr-sm' 
+                : 'bg-slate-800/50 border-slate-700/50 rounded-2xl rounded-tl-sm';
+            
+            div.innerHTML = `
+                ${avatar}
+                <div class="flex-1 max-w-[85%]">
+                    <div class="${bubbleClass} border px-5 py-4">
+                        <div class="text-slate-200 leading-relaxed whitespace-pre-wrap">${content}</div>
+                    </div>
+                </div>
+            `;
+            
+            chatContainer.appendChild(div);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+
+        function addTypingIndicator() {
+            const div = document.createElement('div');
+            div.id = 'typingIndicator';
+            div.className = 'chat-bubble flex gap-4';
+            div.innerHTML = `
+                <div class="w-9 h-9 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-sm flex-shrink-0">🎬</div>
+                <div class="bg-slate-800/50 rounded-2xl rounded-tl-sm px-5 py-4 border border-slate-700/50">
+                    <div class="flex gap-1">
+                        <div class="w-2 h-2 rounded-full bg-slate-400 typing-dot"></div>
+                        <div class="w-2 h-2 rounded-full bg-slate-400 typing-dot"></div>
+                        <div class="w-2 h-2 rounded-full bg-slate-400 typing-dot"></div>
+                    </div>
+                </div>
+            `;
+            chatContainer.appendChild(div);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+
+        function removeTypingIndicator() {
+            const el = document.getElementById('typingIndicator');
+            if (el) el.remove();
+        }
+
+        async function sendMessage() {
+            const text = userInput.value.trim();
+            if (!text || isLoading) return;
+
+            // Add user message
+            addMessage(text, true);
+            userInput.value = '';
+            userInput.style.height = 'auto';
+            
+            // Show typing
+            addTypingIndicator();
+            isLoading = true;
+            sendBtn.disabled = true;
+
+            try {
+                const response = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ message: text })
+                });
+
+                const data = await response.json();
+                removeTypingIndicator();
+
+                if (data.success) {
+                    addMessage(data.response);
+                } else {
+                    addMessage('Lo siento, tuve un error procesando tu solicitud. ¿Puedes intentar de nuevo?');
+                }
+            } catch (err) {
+                removeTypingIndicator();
+                addMessage('Error de conexión. Verifica tu internet e intenta de nuevo.');
+            }
+
+            isLoading = false;
+            sendBtn.disabled = false;
+            userInput.focus();
         }
     </script>
 </body>

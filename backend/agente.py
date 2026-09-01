@@ -1,5 +1,5 @@
 """
-Production Passport - Backend Agente
+Production Passport - Backend Agente Conversacional
 Investiga requisitos de producción cinematográfica por país.
 Usa Parallel Search API + Gemini para generar reportes comparativos.
 """
@@ -16,7 +16,7 @@ PARALLEL_BASE_URL = "https://api.parallel.ai/v1"
 GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta"
 
 
-def parallel_search(query: str, max_results: int = 5) -> dict:
+def parallel_search(query: str) -> dict:
     """Busca información usando Parallel Search API."""
     if not PARALLEL_API_KEY:
         return {"error": "PARALLEL_API_KEY no configurada", "results": []}
@@ -64,14 +64,13 @@ def gemini_generate(prompt: str, system_prompt: str = "") -> str:
     if not GEMINI_API_KEY:
         return "[GEMINI_API_KEY no configurada - resultado simulado]"
     
-    # Google AI Studio usa v1beta con modelo gemini-2.0-flash
     url = f"{GEMINI_BASE_URL}/models/gemini-2.5-flash:generateContent"
     
     payload = {
         "contents": [{"parts": [{"text": prompt}]}],
         "generationConfig": {
             "temperature": 0.7,
-            "maxOutputTokens": 2048
+            "maxOutputTokens": 4096
         }
     }
     
@@ -94,108 +93,150 @@ def gemini_generate(prompt: str, system_prompt: str = "") -> str:
 
 
 # --- System Prompt del Agente ---
-SYSTEM_PROMPT = """Eres un experto en producción cinematográfica internacional. 
+SYSTEM_PROMPT = """Eres un experto en producción cinematográfica internacional llamado "Production Passport".
 Tu trabajo es investigar y comparar requisitos de producción (permisos, costos, incentivos fiscales, restricciones) 
 para diferentes países.
 
-Cuando recibas un desglose de producción, debes:
-1. Identificar los requisitos específicos según el tipo de producción
-2. Investigar por cada país solicitado
+Cuando recibas una consulta del usuario, debes:
+1. Identificar los requisitos específicos según el tipo de producción mencionado
+2. Investigar por cada país mencionado o sugerir alternativas
 3. Generar un reporte comparativo claro y accionable
 
 Siempre incluye:
-- Costos estimados de permisos
+- Costos estimados de permisos (en USD)
 - Tiempos de aprobación
 - Requisitos específicos (drones, pirotecnia, menores, etc.)
 - Links a fuentes oficiales cuando estén disponibles
 - Un checklist accionable por país
 
-Si no tienes información específica, indícalo claramente y sugiere alternativas."""
+Si no tienes información específica, indícalo claramente y sugiere alternativas.
+Si el usuario no menciona países, sugiere 2-3 opciones viables según el tipo de producción.
+
+Responde en español por defecto, a menos que el usuario escriba en otro idioma."""
 
 
-def investigar_pais(pais: str, desglose: dict) -> dict:
-    """Investiga requisitos de producción para un país específico."""
-    # Construir query de búsqueda
-    elementos = []
-    if desglose.get("drones"):
-        elementos.append("permisos de drones")
-    if desglose.get("pirotecnia"):
-        elementos.append("permisos de pirotecnia")
-    if desglose.get("menores"):
-        elementos.append("requisitos para menores")
-    if desglose.get("agua"):
-        elementos.append("filmación en agua")
-    if desglose.get("armas"):
-        elementos.append("uso de armas")
+def procesar_consulta(mensaje: str) -> str:
+    """Procesa una consulta conversacional del usuario y genera un reporte."""
     
-    query_elementos = ", ".join(elementos) if elementos else "filmación general"
-    
-    query = f"film production permits {pais} {query_elementos} requirements costs 2025"
-    
-    # Buscar información
-    resultados = parallel_search(query)
-    
-    # Extraer contenido de las primeras URLs
-    contenidos = []
-    for resultado in resultados.get("results", [])[:3]:
-        url = resultado.get("url", "")
-        if url:
-            extract = parallel_extract(url, query)
-            contenidos.append({
-                "url": url,
-                "titulo": resultado.get("title", ""),
-                "contenido": extract.get("results", [{}])[0].get("excerpts", [""])[0][:2000] if extract.get("results") else ""
-            })
-    
-    return {
-        "pais": pais,
-        "query": query,
-        "contenidos": contenidos
-    }
+    # Paso 1: Extraer información del mensaje con Gemini
+    prompt_extraccion = f"""Extrae la siguiente información del mensaje del usuario:
 
+Mensaje: "{mensaje}"
 
-def generar_reporte(desglose: dict, paises: list) -> str:
-    """Genera el reporte comparativo final."""
-    
-    # Investigar cada país
+Formato de respuesta (solo JSON, sin texto adicional):
+{{
+  "paises": ["pais1", "pais2"],
+  "locacion": "tipo de locación (urbana, natural, interior, patrimonio, aérea)",
+  "extras": número de extras (0 si no se menciona),
+  "drones": true/false,
+  "pirotecnia": true/false,
+  "menores": true/false,
+  "agua": true/false,
+  "armas": true/false,
+  "animales": true/false,
+  "gruas": true/false,
+  "nocturno": true/false,
+  "presupuesto": presupuesto en USD (0 si no se menciona)
+}}"""
+
+    try:
+        extraccion_json = gemini_generate(prompt_extraccion, "Eres un extractor de información. Responde solo con JSON válido.")
+        # Limpiar el JSON si viene con markdown
+        extraccion_json = extraccion_json.replace("```json", "").replace("```", "").strip()
+        desglose = json.loads(extraccion_json)
+    except:
+        # Fallback: usar valores por defecto
+        desglose = {
+            "paises": ["Mexico", "Colombia"],
+            "locacion": "urbana",
+            "extras": 0,
+            "drones": False,
+            "pirotecnia": False,
+            "menores": False,
+            "agua": False,
+            "armas": False,
+            "animales": False,
+            "gruas": False,
+            "nocturno": False,
+            "presupuesto": 0
+        }
+
+    # Asegurar que haya países
+    if not desglose.get("paises"):
+        desglose["paises"] = ["Mexico", "Colombia", "Spain"]
+
+    # Paso 2: Investigar cada país
     investigaciones = []
-    for pais in paises:
-        inv = investigar_pais(pais, desglose)
-        investigaciones.append(inv)
-    
-    # Construir prompt para Gemini
-    prompt_usuario = f"""Genera un reporte comparativo de producción cinematográfica.
+    for pais in desglose["paises"]:
+        elementos = []
+        if desglose.get("drones"):
+            elementos.append("drones")
+        if desglose.get("pirotecnia"):
+            elementos.append("pirotecnia")
+        if desglose.get("menores"):
+            elementos.append("menores")
+        if desglose.get("agua"):
+            elementos.append("agua")
+        if desglose.get("armas"):
+            elementos.append("armas")
+        
+        query_elementos = ", ".join(elementos) if elementos else "filmación general"
+        query = f"film production permits {pais} {query_elementos} requirements costs 2025"
+        
+        try:
+            resultados = parallel_search(query)
+            contenidos = []
+            for resultado in resultados.get("results", [])[:3]:
+                url = resultado.get("url", "")
+                if url:
+                    extract = parallel_extract(url, query)
+                    contenidos.append({
+                        "url": url,
+                        "titulo": resultado.get("title", ""),
+                        "contenido": extract.get("results", [{}])[0].get("excerpts", [""])[0][:1500] if extract.get("results") else ""
+                    })
+            investigaciones.append({
+                "pais": pais,
+                "contenidos": contenidos
+            })
+        except:
+            investigaciones.append({
+                "pais": pais,
+                "contenidos": []
+            })
 
-DESGLOSE DE PRODUCCIÓN:
-- Locación: {desglose.get('locacion', 'No especificada')}
-- Equipo especial: {desglose.get('equipo_especial', 'Ninguno')}
-- Número de extras: {desglose.get('extras', 0)}
-- Vestuario/arte: {desglose.get('vestuario', 'Normal')}
-- Stunts/efectos: {desglose.get('stunts', 'Ninguno')}
-- Presupuesto estimado: ${desglose.get('presupuesto', 0):,}
+    # Paso 3: Generar reporte final con Gemini
+    prompt_reporte = f"""Genera un reporte comparativo de producción cinematográfica.
 
-PAÍSES A COMPARAR: {', '.join(paises)}
+CONSULTA ORIGINAL DEL USUARIO: "{mensaje}"
+
+DESGLOSE DETECTADO:
+- Países: {', '.join(desglose['paises'])}
+- Locación: {desglose['locacion']}
+- Extras: {desglose['extras']}
+- Drones: {'Sí' if desglose['drones'] else 'No'}
+- Pirotecnia: {'Sí' if desglose['pirotecnia'] else 'No'}
+- Presupuesto: ${desglose['presupuesto']:,} USD
 
 INFORMACIÓN INVESTIGADA:
 """
-    
+
     for inv in investigaciones:
-        prompt_usuario += f"\n--- {inv['pais']} ---\n"
+        prompt_reporte += f"\n--- {inv['pais']} ---\n"
         for contenido in inv.get("contenidos", []):
-            prompt_usuario += f"Fuente: {contenido['titulo']}\nURL: {contenido['url']}\n{contenido['contenido'][:500]}\n\n"
-    
-    prompt_usuario += """
+            prompt_reporte += f"Fuente: {contenido['titulo']}\nURL: {contenido['url']}\n{contenido['contenido'][:500]}\n\n"
+
+    prompt_reporte += """
 FORMATO DEL REPORTE:
 1. Resumen ejecutivo (2-3 líneas)
 2. Tabla comparativa con columnas: País | Costo Estimado | Tiempo | Requisitos Clave | Riesgo
 3. Detalle por país con checklist accionable
 4. Recomendación final
 
-Incluye los URLs de las fuentes cuando estén disponibles.
-"""
-    
-    # Generar reporte con Gemini
-    reporte = gemini_generate(prompt_usuario, SYSTEM_PROMPT)
+Sé conciso pero completo. Incluye los URLs de las fuentes cuando estén disponibles.
+Si la información es limitada, indícalo y sugiere contactar autoridades locales."""
+
+    reporte = gemini_generate(prompt_reporte, SYSTEM_PROMPT)
     
     return reporte
 
@@ -213,15 +254,17 @@ def create_app():
     def index():
         return send_from_directory(app.static_folder, 'index.html')
     
-    @app.route("/api/investigar", methods=["POST"])
-    def investigar():
+    @app.route("/api/chat", methods=["POST"])
+    def chat():
         data = request.json
-        desglose = data.get("desglose", {})
-        paises = data.get("paises", ["Mexico", "Colombia", "Spain"])
+        mensaje = data.get("message", "")
+        
+        if not mensaje:
+            return jsonify({"success": False, "error": "Mensaje vacío"}), 400
         
         try:
-            reporte = generar_reporte(desglose, paises)
-            return jsonify({"success": True, "reporte": reporte})
+            respuesta = procesar_consulta(mensaje)
+            return jsonify({"success": True, "response": respuesta})
         except Exception as e:
             return jsonify({"success": False, "error": str(e)}), 500
     
