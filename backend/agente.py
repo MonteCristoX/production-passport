@@ -37,26 +37,51 @@ def gm(prompt, retries=2):
     if not k:
         return "Error: GEMINI_API_KEY not configured"
     
-    for attempt in range(retries):
-        try:
-            r = requests.post("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent",
-                json={"contents": [{"parts": [{"text": prompt}]}], "generationConfig": {"temperature": 0.7, "maxOutputTokens": 8192}},
-                params={"key": k}, timeout=60)
-            r.raise_for_status()
-            return r.json()["candidates"][0]["content"]["parts"][0]["text"]
-        except requests.exceptions.HTTPError as e:
-            if e.response.status_code == 429:
-                import time
-                wait = 15 * (attempt + 1)
-                print(f"Rate limited, waiting {wait}s...")
-                time.sleep(wait)
-                continue
-            print(f"Gemini HTTP error: {e}")
-            return f"API Error: {e}"
-        except Exception as e:
-            print(f"Gemini error: {e}")
-            return f"Error: {e}"
-    return "Error: Rate limit exceeded. Please try again in a moment."
+    # Detect key type: AI Studio keys start with AIza, Vertex/Cloud keys are different
+    is_vertex = not k.startswith("AIza")
+    
+    if is_vertex:
+        # Vertex AI endpoint - needs project ID and location
+        # For now, fall back to AI Studio format but try different model names
+        models_to_try = [
+            "gemini-1.5-flash",
+            "gemini-1.5-flash-latest", 
+            "gemini-1.5-pro",
+            "gemini-1.5-pro-latest",
+            "gemini-2.0-flash-exp",
+        ]
+    else:
+        models_to_try = [
+            "gemini-1.5-flash",
+            "gemini-1.5-flash-latest",
+            "gemini-1.5-pro",
+        ]
+    
+    for model in models_to_try:
+        for attempt in range(retries):
+            try:
+                r = requests.post(f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent",
+                    json={"contents": [{"parts": [{"text": prompt}]}], "generationConfig": {"temperature": 0.7, "maxOutputTokens": 8192}},
+                    params={"key": k}, timeout=60)
+                if r.status_code == 200:
+                    return r.json()["candidates"][0]["content"]["parts"][0]["text"]
+                elif r.status_code == 404:
+                    # Model not found, try next model
+                    break
+                elif r.status_code == 429:
+                    import time
+                    wait = 15 * (attempt + 1)
+                    print(f"Rate limited ({model}), waiting {wait}s...")
+                    time.sleep(wait)
+                    continue
+                else:
+                    print(f"Gemini HTTP error ({model}): {r.status_code} - {r.text[:200]}")
+                    break
+            except Exception as e:
+                print(f"Gemini error ({model}): {e}")
+                break
+    
+    return "Error: No working Gemini model found. Check API key and model access."
 
 
 def process_query(message):
