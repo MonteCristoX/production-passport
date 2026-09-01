@@ -19,6 +19,44 @@
         .scrollbar-thin::-webkit-scrollbar { width: 6px; }
         .scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
         .scrollbar-thin::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
+        .report-bubble { background: rgba(15, 23, 42, 0.72); border-color: rgba(99, 102, 241, 0.24); overflow: hidden; }
+        .report-shell { margin: -0.25rem; color: #e2e8f0; }
+        .report-hero { padding: 1.25rem 1.25rem 1.1rem; background: linear-gradient(135deg, rgba(79, 70, 229, 0.22), rgba(30, 41, 59, 0.2)); border-bottom: 1px solid rgba(129, 140, 248, 0.18); }
+        .report-eyebrow { color: #a5b4fc; font-size: 0.66rem; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase; }
+        .report-title { color: #f8fafc; font-size: clamp(1.25rem, 3vw, 1.65rem); font-weight: 700; line-height: 1.2; margin-top: 0.4rem; }
+        .report-subtitle { color: #94a3b8; font-size: 0.78rem; line-height: 1.5; margin-top: 0.55rem; }
+        .report-content { padding: 1.1rem 1.25rem 1.25rem; }
+        .report-section { border-top: 1px solid rgba(71, 85, 105, 0.42); padding: 1.15rem 0 0.15rem; }
+        .report-section:first-child { border-top: 0; padding-top: 0; }
+        .report-section-heading { align-items: center; color: #f8fafc; display: flex; font-size: 0.92rem; font-weight: 650; gap: 0.6rem; margin-bottom: 0.8rem; }
+        .report-section-number { align-items: center; background: rgba(99, 102, 241, 0.18); border: 1px solid rgba(129, 140, 248, 0.32); border-radius: 0.55rem; color: #c7d2fe; display: inline-flex; flex: 0 0 auto; font-size: 0.68rem; font-weight: 700; height: 1.6rem; justify-content: center; width: 1.6rem; }
+        .report-copy { color: #cbd5e1; font-size: 0.82rem; line-height: 1.7; margin: 0.45rem 0; }
+        .report-copy strong, .report-highlight strong { color: #f8fafc; font-weight: 650; }
+        .report-highlight { background: rgba(30, 41, 59, 0.72); border-left: 3px solid #818cf8; border-radius: 0 0.55rem 0.55rem 0; color: #dbeafe; font-size: 0.8rem; line-height: 1.6; margin: 0.75rem 0; padding: 0.7rem 0.85rem; }
+        .report-list, .report-checklist { display: grid; gap: 0.45rem; list-style: none; margin: 0.65rem 0 0.8rem; padding: 0; }
+        .report-list li, .report-checklist li { color: #cbd5e1; font-size: 0.8rem; line-height: 1.5; padding-left: 1.15rem; position: relative; }
+        .report-list li::before { color: #818cf8; content: "•"; font-size: 1.15rem; left: 0; line-height: 1; position: absolute; top: 0.08rem; }
+        .report-checklist li { background: rgba(30, 41, 59, 0.52); border: 1px solid rgba(71, 85, 105, 0.38); border-radius: 0.55rem; padding: 0.58rem 0.7rem 0.58rem 2rem; }
+        .report-checklist li::before { color: #34d399; content: "✓"; font-size: 0.78rem; font-weight: 700; left: 0.72rem; position: absolute; top: 0.62rem; }
+        .country-grid { display: grid; gap: 0.75rem; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); margin: 0.75rem 0 0.35rem; }
+        .country-card { background: linear-gradient(160deg, rgba(30, 41, 59, 0.92), rgba(15, 23, 42, 0.74)); border: 1px solid rgba(100, 116, 139, 0.34); border-radius: 0.8rem; overflow: hidden; }
+        .country-card-head { align-items: center; background: rgba(51, 65, 85, 0.28); border-bottom: 1px solid rgba(100, 116, 139, 0.26); display: flex; gap: 0.5rem; justify-content: space-between; padding: 0.75rem 0.8rem; }
+        .country-name { color: #f8fafc; font-size: 0.77rem; font-weight: 700; letter-spacing: 0.08em; }
+        .risk-badge { border-radius: 999px; font-size: 0.59rem; font-weight: 700; letter-spacing: 0.08em; padding: 0.25rem 0.45rem; }
+        .risk-high { background: rgba(248, 113, 113, 0.14); color: #fda4af; }
+        .risk-medium { background: rgba(251, 191, 36, 0.14); color: #fcd34d; }
+        .risk-low { background: rgba(52, 211, 153, 0.14); color: #6ee7b7; }
+        .country-metrics { display: grid; gap: 0.55rem; padding: 0.8rem; }
+        .country-metric { display: grid; gap: 0.16rem; }
+        .country-metric-label { color: #94a3b8; font-size: 0.62rem; font-weight: 650; letter-spacing: 0.06em; text-transform: uppercase; }
+        .country-metric-value { color: #e2e8f0; font-size: 0.75rem; line-height: 1.45; }
+        .report-download { align-items: center; color: #a5b4fc; display: inline-flex; font-size: 0.72rem; gap: 0.38rem; margin-top: 0.7rem; transition: color 0.2s ease; }
+        .report-download:hover { color: #c7d2fe; }
+        .report-download svg { height: 0.9rem; width: 0.9rem; }
+        @media (max-width: 640px) {
+            .report-hero, .report-content { padding-left: 1rem; padding-right: 1rem; }
+            .country-grid { grid-template-columns: 1fr; }
+        }
     </style>
 </head>
 <body class="gradient-bg text-white min-h-screen flex flex-col">
@@ -127,6 +165,203 @@
             userInput.focus();
         }
 
+        function escapeHtml(value) {
+            return String(value).replace(/[&<>"']/g, char => ({
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#039;'
+            }[char]));
+        }
+
+        function inlineMarkdown(value) {
+            let safe = escapeHtml(value);
+            safe = safe.replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g,
+                '<a href="$2" target="_blank" rel="noopener noreferrer" class="text-indigo-300 hover:text-indigo-200 underline underline-offset-2">$1</a>');
+            safe = safe.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+            safe = safe.replace(/`([^`]+)`/g, '<code class="rounded bg-slate-950/60 px-1 py-0.5 text-indigo-200">$1</code>');
+            return safe;
+        }
+
+        function parseCountryCards(lines) {
+            const cards = [];
+            const consumed = new Set();
+            let blockStart = -1;
+
+            lines.forEach((line, index) => {
+                if (line.includes('┌')) blockStart = index;
+                if (blockStart >= 0 && line.includes('┘')) {
+                    const block = lines.slice(blockStart, index + 1);
+                    const cells = [];
+                    let country = '';
+                    let activeLabel = '';
+
+                    block.forEach(rawLine => {
+                        if (!rawLine.includes('│')) return;
+                        const parts = rawLine.split('│').map(part => part.trim());
+                        const label = parts[1] || '';
+                        const value = parts[2] || '';
+                        if (!label && !value) return;
+
+                        if (value) {
+                            const fieldLabel = label || activeLabel;
+                            if (fieldLabel) {
+                                activeLabel = label || activeLabel;
+                                cells.push({ label: fieldLabel, value });
+                            }
+                        } else if (!country && label) {
+                            country = label;
+                        }
+                    });
+
+                    if (country) {
+                        cards.push({ country, fields: cells });
+                        for (let cursor = blockStart; cursor <= index; cursor += 1) consumed.add(cursor);
+                    }
+                    blockStart = -1;
+                }
+            });
+
+            return { cards, consumed };
+        }
+
+        function renderCountryCards(parsedCards) {
+            if (!parsedCards.length) return '';
+
+            return `<div class="country-grid">${parsedCards.map(card => {
+                const riskField = card.fields.find(field => /risk level/i.test(field.label));
+                const risk = riskField ? riskField.value.toLowerCase() : 'medium';
+                const riskClass = risk.includes('high') ? 'risk-high' : risk.includes('low') ? 'risk-low' : 'risk-medium';
+                const metrics = card.fields
+                    .filter(field => field !== riskField)
+                    .map(field => `<div class="country-metric">
+                        <span class="country-metric-label">${inlineMarkdown(field.label)}</span>
+                        <span class="country-metric-value">${inlineMarkdown(field.value)}</span>
+                    </div>`).join('');
+
+                return `<article class="country-card">
+                    <div class="country-card-head">
+                        <span class="country-name">${inlineMarkdown(card.country)}</span>
+                        <span class="risk-badge ${riskClass}">${inlineMarkdown(riskField ? riskField.value : 'MEDIUM')}</span>
+                    </div>
+                    <div class="country-metrics">${metrics}</div>
+                </article>`;
+            }).join('')}</div>`;
+        }
+
+        function renderReportSection(section, index) {
+            const { cards, consumed } = parseCountryCards(section.lines);
+            const content = [];
+            let bullets = [];
+            let checks = [];
+
+            const flushBullets = () => {
+                if (!bullets.length) return;
+                content.push(`<ul class="report-list">${bullets.map(item => `<li>${inlineMarkdown(item)}</li>`).join('')}</ul>`);
+                bullets = [];
+            };
+            const flushChecks = () => {
+                if (!checks.length) return;
+                content.push(`<ul class="report-checklist">${checks.map(item => `<li>${inlineMarkdown(item)}</li>`).join('')}</ul>`);
+                checks = [];
+            };
+
+            section.lines.forEach((rawLine, lineIndex) => {
+                if (consumed.has(lineIndex) || !rawLine.trim()) return;
+                const line = rawLine.trim();
+                if (/^[┌└├─┐┘┤┬┴┼│]/.test(line)) return;
+
+                const checkMatch = line.match(/^[☐□]\s*(.*)$/);
+                if (checkMatch) {
+                    flushBullets();
+                    checks.push(checkMatch[1]);
+                    return;
+                }
+
+                const bulletMatch = line.match(/^(?:•|[-*])\s*(.*)$/);
+                if (bulletMatch) {
+                    flushChecks();
+                    bullets.push(bulletMatch[1]);
+                    return;
+                }
+
+                const recommendationMatch = line.match(/^▶\s*(.*)$/);
+                if (recommendationMatch) {
+                    flushBullets();
+                    flushChecks();
+                    content.push(`<div class="report-highlight">${inlineMarkdown(recommendationMatch[1])}</div>`);
+                    return;
+                }
+
+                flushBullets();
+                flushChecks();
+                if (/recommendation|estimated daily total|budget/i.test(line)) {
+                    content.push(`<div class="report-highlight">${inlineMarkdown(line)}</div>`);
+                } else {
+                    content.push(`<p class="report-copy">${inlineMarkdown(line)}</p>`);
+                }
+            });
+
+            flushBullets();
+            flushChecks();
+
+            const cardsHtml = renderCountryCards(cards);
+            const sectionTitle = section.title.replace(/^\d+\.\s*/, '');
+            return `<section class="report-section">
+                <h3 class="report-section-heading">
+                    <span class="report-section-number">${String(index + 1).padStart(2, '0')}</span>
+                    <span>${inlineMarkdown(sectionTitle)}</span>
+                </h3>
+                ${cardsHtml}
+                ${content.join('')}
+            </section>`;
+        }
+
+        function formatReport(content) {
+            const lines = String(content).replace(/\r/g, '').split('\n');
+            const titleIndex = lines.findIndex(line => /^#{1,3}\s*Film Production Report/i.test(line));
+            const rawTitle = titleIndex >= 0 ? lines[titleIndex].replace(/^#{1,3}\s*/, '') : 'Production Intelligence Report';
+            const title = rawTitle.replace(/^Film Production Report:\s*/i, '');
+            const reportLines = titleIndex >= 0 ? lines.filter((_, index) => index !== titleIndex) : lines;
+            const sections = [];
+            let current = null;
+
+            reportLines.forEach(line => {
+                const heading = line.match(/^#{2,3}\s+(.+)$/);
+                if (heading) {
+                    if (current) sections.push(current);
+                    current = { title: heading[1], lines: [] };
+                } else if (current) {
+                    current.lines.push(line);
+                }
+            });
+            if (current) sections.push(current);
+
+            if (!sections.length) {
+                return `<div class="report-shell"><div class="report-hero">
+                    <div class="report-eyebrow">Production intelligence</div>
+                    <div class="report-title">${inlineMarkdown(title)}</div>
+                </div><div class="report-content"><p class="report-copy">${inlineMarkdown(content)}</p></div></div>`;
+            }
+
+            return `<div class="report-shell">
+                <div class="report-hero">
+                    <div class="report-eyebrow">Production intelligence report</div>
+                    <div class="report-title">${inlineMarkdown(title)}</div>
+                    <div class="report-subtitle">A decision-ready brief covering permits, costs, local vendors and production risk.</div>
+                </div>
+                <div class="report-content">${sections.map(renderReportSection).join('')}</div>
+            </div>`;
+        }
+
+        function formatAssistantContent(content) {
+            const looksLikeReport = /Film Production Report|Executive Summary|Permits & Costs|Final Recommendation|┌/i.test(content);
+            return looksLikeReport
+                ? formatReport(content)
+                : `<div class="text-slate-200 leading-relaxed">${inlineMarkdown(content).replace(/\n/g, '<br>')}</div>`;
+        }
+
         function addMessage(content, isUser = false) {
             const div = document.createElement('div');
             div.className = 'chat-bubble flex gap-4' + (isUser ? ' flex-row-reverse' : '');
@@ -137,21 +372,21 @@
             
             const bubbleClass = isUser 
                 ? 'bg-indigo-600/20 border-indigo-500/30 rounded-2xl rounded-tr-sm' 
-                : 'bg-slate-800/50 border-slate-700/50 rounded-2xl rounded-tl-sm';
+                : 'bg-slate-800/50 border-slate-700/50 rounded-2xl rounded-tl-sm report-bubble';
             
-            const formattedContent = content
-                .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-                .replace(/\n/g, '<br>');
+            const formattedContent = isUser
+                ? `<div class="text-slate-200 leading-relaxed">${inlineMarkdown(content).replace(/\n/g, '<br>')}</div>`
+                : formatAssistantContent(content);
             
             div.innerHTML = `
                 ${avatar}
-                <div class="flex-1 max-w-[85%]">
+                <div class="flex-1 ${isUser ? 'max-w-[85%]' : 'max-w-[94%]'}">
                     <div class="${bubbleClass} border px-5 py-4">
-                        <div class="text-slate-200 leading-relaxed">${formattedContent}</div>
+                        ${formattedContent}
                     </div>
-                    ${!isUser ? `<button onclick="downloadDocx('${btoa(unescape(encodeURIComponent(content)))}')" class="mt-2 text-xs text-indigo-400 hover:text-indigo-300 flex items-center gap-1">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
-                        Download DOCX
+                    ${!isUser ? `<button onclick="downloadDocx('${btoa(unescape(encodeURIComponent(content)))}')" class="report-download">
+                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                        Download report
                     </button>` : ''}
                 </div>
             `;
