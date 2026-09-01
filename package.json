@@ -1,0 +1,24 @@
+{
+  "name": "workspace",
+  "version": "1.0.0",
+  "description": "**Agente inteligente para investigación de producción cinematográfica internacional**",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/MonteCristoX/production-passport.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/MonteCristoX/production-passport/issues"
+  },
+  "homepage": "https://github.com/MonteCristoX/production-passport#readme",
+  "dependencies": {
+    "@replit/connectors-sdk": "^0.4.3"
+  }
+}

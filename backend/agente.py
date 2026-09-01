@@ -1,7 +1,9 @@
 import os, json, requests
-from concurrent.futures import ThreadPoolExecutor, as_completed
-from datetime import datetime
 import re
+import subprocess
+import tempfile
+from datetime import datetime, timezone
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 def get_key(name):
     return os.environ.get(name, "")
@@ -658,6 +660,19 @@ def create_app():
             import traceback
             print(traceback.format_exc())
             return jsonify({"success": False, "error": str(e)}), 500
+
+    @app.route("/api/save-to-drive", methods=["POST"])
+    def save_to_drive():
+        data = request.json or {}
+        report_text = data.get("report", "")
+        if not report_text:
+            return jsonify({"success": False, "error": "No report"}), 400
+        try:
+            uploaded = upload_report_to_drive(report_text)
+            return jsonify({"success": True, "file": uploaded})
+        except Exception as e:
+            app.logger.exception("Google Drive upload failed")
+            return jsonify({"success": False, "error": str(e)}), 502
     
     @app.route("/api/health", methods=["GET"])
     def health(): 
@@ -724,6 +739,47 @@ def generate_docx(text):
         import os as o
         o.unlink(tmp.name)
     return data
+
+
+def build_report_filename(text):
+    title = "production-passport-report"
+    for line in text.splitlines():
+        clean = line.strip().lstrip("#").strip()
+        if clean:
+            clean = re.sub(r"^Film Production Report:\s*", "", clean, flags=re.IGNORECASE)
+            clean = re.sub(r"[^A-Za-z0-9]+", "-", clean).strip("-").lower()
+            if clean:
+                title = clean[:70]
+            break
+    timestamp = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
+    return f"{title}-{timestamp}.docx"
+
+
+def upload_report_to_drive(report_text):
+    docx_bytes = generate_docx(report_text)
+    file_name = build_report_filename(report_text)
+    helper_path = os.path.join(os.path.dirname(__file__), "google_drive_upload.js")
+    temp_path = None
+
+    try:
+        with tempfile.NamedTemporaryFile(suffix=".docx", delete=False) as temp_file:
+            temp_file.write(docx_bytes)
+            temp_path = temp_file.name
+
+        result = subprocess.run(
+            ["node", helper_path, temp_path, file_name],
+            capture_output=True,
+            text=True,
+            timeout=60,
+            check=False,
+        )
+        if result.returncode != 0:
+            error = result.stderr.strip() or "Google Drive upload failed"
+            raise RuntimeError(error)
+        return json.loads(result.stdout)
+    finally:
+        if temp_path and os.path.exists(temp_path):
+            os.unlink(temp_path)
 
 
 if __name__ == "__main__":

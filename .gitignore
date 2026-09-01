@@ -38,3 +38,6 @@ Thumbs.db
 
 # Logs
 *.log
+
+# Node.js helper dependencies
+node_modules/

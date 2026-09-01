@@ -53,6 +53,12 @@
         .report-download { align-items: center; color: #a5b4fc; display: inline-flex; font-size: 0.72rem; gap: 0.38rem; margin-top: 0.7rem; transition: color 0.2s ease; }
         .report-download:hover { color: #c7d2fe; }
         .report-download svg { height: 0.9rem; width: 0.9rem; }
+        .report-actions { align-items: center; display: flex; flex-wrap: wrap; gap: 1rem; }
+        .report-drive { color: #6ee7b7; }
+        .report-drive:hover { color: #a7f3d0; }
+        .report-download:disabled { cursor: wait; opacity: 0.55; }
+        .drive-result { align-items: center; color: #6ee7b7; display: inline-flex; font-size: 0.7rem; gap: 0.35rem; margin-top: 0.7rem; }
+        .drive-result-error { color: #fda4af; }
         @media (max-width: 640px) {
             .report-hero, .report-content { padding-left: 1rem; padding-right: 1rem; }
             .country-grid { grid-template-columns: 1fr; }
@@ -384,10 +390,17 @@
                     <div class="${bubbleClass} border px-5 py-4">
                         ${formattedContent}
                     </div>
-                    ${!isUser ? `<button onclick="downloadDocx('${btoa(unescape(encodeURIComponent(content)))}')" class="report-download">
-                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
-                        Download report
-                    </button>` : ''}
+                    ${!isUser ? `<div class="report-actions">
+                        <button onclick="downloadDocx('${btoa(unescape(encodeURIComponent(content)))}')" class="report-download">
+                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                            Download report
+                        </button>
+                        <button onclick="saveToGoogleDrive('${btoa(unescape(encodeURIComponent(content)))}', this)" class="report-download report-drive">
+                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3l4.5 7.8M7.5 10.8L12 3m-4.5 7.8L3 18.6m4.5-7.8h9m0 0l4.5 7.8m-18 0h18m-13.5 0L12 10.8l4.5 7.8"/></svg>
+                            Save to Google Drive
+                        </button>
+                        <span class="drive-result hidden" aria-live="polite"></span>
+                    </div>` : ''}
                 </div>
             `;
             
@@ -412,6 +425,41 @@
                 window.URL.revokeObjectURL(url);
             } catch (err) {
                 alert('Error downloading document');
+            }
+        }
+
+        async function saveToGoogleDrive(base64Content, button) {
+            const content = decodeURIComponent(escape(atob(base64Content)));
+            const result = button.parentElement.querySelector('.drive-result');
+            const originalLabel = button.innerHTML;
+            button.disabled = true;
+            button.innerHTML = '<span>Saving to Drive…</span>';
+            result.classList.add('hidden');
+            result.classList.remove('drive-result-error');
+
+            try {
+                const response = await fetch('/api/save-to-drive', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ report: content })
+                });
+                const data = await response.json();
+                if (!response.ok || !data.success) {
+                    throw new Error(data.error || 'Could not save the report');
+                }
+
+                const file = data.file || {};
+                result.innerHTML = file.webViewLink
+                    ? `Saved · <a class="underline underline-offset-2" href="${escapeHtml(file.webViewLink)}" target="_blank" rel="noopener noreferrer">Open in Drive</a>`
+                    : 'Saved to Google Drive';
+                result.classList.remove('hidden');
+            } catch (error) {
+                result.textContent = error.message || 'Could not save to Google Drive';
+                result.classList.add('drive-result-error');
+                result.classList.remove('hidden');
+            } finally {
+                button.disabled = false;
+                button.innerHTML = originalLabel;
             }
         }
 
