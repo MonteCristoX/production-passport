@@ -138,13 +138,22 @@ Research:
 Write a comprehensive but concise report (max 2500 chars). Structure:
 
 1. **Executive Summary** (2-3 sentences)
-2. **Permits & Costs Table**: Country | Permit Cost | Processing Time | Key Restrictions | Risk
-3. **Bring vs Hire**: Gear rental daily rates, crew day rates, extras cost. Calculate totals. List vendor names.
-4. **Drone Rules** (if applicable)
-5. **Actionable Checklist** (3-5 items per country)
+2. **Permits & Costs** — for each country use this format:
+┌─────────────────────────────────────────────────────────────────┐
+│ COUNTRY NAME                                                    │
+├─────────────────────┬────────────────────────────────────────────┤
+│ Permit Cost         │ $X – $Y per day                            │
+│ Processing Time     │ N – M business days                        │
+│ Key Restrictions    │ • Bullet 1                                 │
+│                     │ • Bullet 2                                 │
+│ Risk Level          │ HIGH/MEDIUM/LOW                            │
+└─────────────────────┴────────────────────────────────────────────┘
+3. **Bring vs Hire**: Gear rental daily rates, crew day rates, extras cost. Calculate totals. List vendor names. Use bullet points with •
+4. **Drone Rules** (if applicable) — bullet points with •
+5. **Actionable Checklist** (3-5 items per country) — checkboxes with ☐
 6. **Final Recommendation**
 
-Be specific. No "data unavailable". Use estimates marked as (estimate). Include source URLs as markdown links."""
+Be specific. No "data unavailable". Use estimates marked as (estimate). Include source URLs as markdown links. NO markdown tables — use the box format above."""
     
     result = gm(prompt)
     # Fallback to demo if API failed
@@ -168,66 +177,94 @@ def generate_demo_report(message):
 ### 1. Executive Summary
 Production planned for {countries_str} ({data['location_type']} location) with {extras_str} and {drones_str}. Budget: {budget_str}. Key challenges include managing {data['extras']} extras in an urban environment and obtaining commercial drone permits where applicable. Local hiring is recommended for crew and extras to reduce costs and ensure compliance.
 
-### 2. Permits & Costs Table
-
-| Country | Permit Cost (Estimate) | Processing Time | Key Restrictions | Risk |
-|---------|------------------------|-----------------|------------------|------|
+### 2. Permits & Costs (Estimates)
 """
     
     for c in data["countries"]:
         if c == "Mexico":
-            report += """| Mexico | $500–$5,000/day | 10–15 business days | No foreign drone operators; AFAC permit required for commercial use; 50 extras need individual work permits | HIGH |
+            report += """┌─────────────────────────────────────────────────────────────────┐
+│ MEXICO                                                            │
+├─────────────────────┬────────────────────────────────────────────┤
+│ Permit Cost         │ $500 – $5,000 per day                      │
+│ Processing Time     │ 10 – 15 business days                      │
+│ Key Restrictions    │ • No foreign drone operators allowed       │
+│                     │ • AFAC commercial permit mandatory         │
+│                     │ • 50 extras need individual work permits   │
+│ Risk Level          │ HIGH                                       │
+└─────────────────────┴────────────────────────────────────────────┘
 """
         elif c == "Colombia":
-            report += """| Colombia | $300–$3,000/day | 5–10 business days | Film commission approval required; drone permits via Aerocivil; extras need temporary work visas | MEDIUM |
+            report += """┌─────────────────────────────────────────────────────────────────┐
+│ COLOMBIA                                                          │
+├─────────────────────┬────────────────────────────────────────────┤
+│ Permit Cost         │ $300 – $3,000 per day                      │
+│ Processing Time     │ 5 – 10 business days                       │
+│ Key Restrictions    │ • Film commission approval required        │
+│                     │ • Drone permits via Aerocivil              │
+│                     │ • Extras need temporary work visas         │
+│ Risk Level          │ MEDIUM                                     │
+└─────────────────────┴────────────────────────────────────────────┘
 """
         else:
-            report += f"| {c} | $200–$4,000/day | 5–20 business days | Local regulations vary; check film commission | MEDIUM |\n"
+            report += f"""┌─────────────────────────────────────────────────────────────────┐
+│ {c.upper():<63} │
+├─────────────────────┬────────────────────────────────────────────┤
+│ Permit Cost         │ $200 – $4,000 per day                      │
+│ Processing Time     │ 5 – 20 business days                       │
+│ Key Restrictions    │ Local regulations vary; check film commission │
+│ Risk Level          │ MEDIUM                                     │
+└─────────────────────┴────────────────────────────────────────────┘
+"""
     
     report += """
 ### 3. Bring vs Hire: Cost Analysis
 
 **Gear Rental (Daily Rates - Estimated):**
-- Camera package (ARRI Alexa Mini / RED): $400–$800/day
-- Lens set (cine primes): $200–$400/day
-- Lighting package (HMI/LED): $300–$600/day
-- Grip equipment: $150–$300/day
+  • Camera package (ARRI Alexa Mini / RED):    $400 – $800/day
+  • Lens set (cine primes):                    $200 – $400/day
+  • Lighting package (HMI/LED):                $300 – $600/day
+  • Grip equipment:                            $150 – $300/day
 
 **Crew Day Rates (Local Hire - Estimated):**
-- Director of Photography: $600–$1,200/day
-- Gaffer / Key Grip: $350–$600/day
-- Camera Assistant (1st/2nd AC): $250–$450/day
-- Production Manager: $400–$800/day
-- Location Manager: $300–$500/day
-- Sound Mixer: $350–$600/day
-- **Extras (50 people): $75–$150/person/day = $3,750–$7,500/day**
+  • Director of Photography:                   $600 – $1,200/day
+  • Gaffer / Key Grip:                         $350 – $600/day
+  • Camera Assistant (1st/2nd AC):             $250 – $450/day
+  • Production Manager:                        $400 – $800/day
+  • Location Manager:                          $300 – $500/day
+  • Sound Mixer:                               $350 – $600/day
+  • Extras (50 people):                        $75 – $150/person/day = $3,750 – $7,500/day
 
-**Estimated Daily Total (local hire): $6,000–$12,000/day**  
-**Estimated Daily Total (bring crew): $10,000–$20,000/day** (incl. travel, per diem, insurance)
+**Estimated Daily Total (local hire):     $6,000 – $12,000/day**  
+**Estimated Daily Total (bring crew):     $10,000 – $20,000/day** (incl. travel, per diem, insurance)
 
-**Recommendation: HIRE LOCALLY** — saves 40–50% and avoids visa/logistics complexity.
+▶ RECOMMENDATION: HIRE LOCALLY — saves 40–50% and avoids visa/logistics complexity.
 
 **Local Vendors (Mexico):**
-- **Story** (story.mx) — Full service production
-- **We Produce** (weproduce.mx) — Equipment & crew
-- **80 Days Films** (80daysfilms.com) — International co-productions
-
+  • Story (story.mx) — Full service production
+  • We Produce (weproduce.mx) — Equipment & crew
+  • 80 Days Films (80daysfilms.com) — International co-productions
+"""
+    
+    if data['drones']:
+        report += """
 ### 4. Drone Rules (Mexico)
-- **AFAC permit required** for ALL commercial drone operations (no exceptions)
-- Foreign operators must partner with Mexican certified operator
-- Max altitude: 400 ft (120 m); VLOS mandatory
-- No-fly zones: airports, military, government buildings, crowds
-- Processing: 15–30 days; cost ~$2,000–$5,000 USD
-- Insurance: $1M+ liability required
-
+  • AFAC permit required for ALL commercial operations (no exceptions)
+  • Foreign operators must partner with Mexican certified operator
+  • Max altitude: 400 ft (120 m); VLOS mandatory
+  • No-fly zones: airports, military, government buildings, crowds
+  • Processing: 15–30 days; cost ~$2,000–$5,000 USD
+  • Insurance: $1M+ liability required
+"""
+    
+    report += """
 ### 5. Actionable Checklist
 
 **Mexico:**
-- [ ] Hire Mexican production service company (fixer) — **Week 1**
-- [ ] Submit film permit application to Mexico City Film Commission — **Week 1–2**
-- [ ] Apply for AFAC commercial drone permit (via local partner) — **Week 1**
-- [ ] Secure work permits for 50 extras via local casting agency — **Week 2–3**
-- [ ] Confirm insurance coverage ($1M+ liability, workers' comp) — **Week 2**
+  ☐ Hire Mexican production service company (fixer) — Week 1
+  ☐ Submit film permit application to Mexico City Film Commission — Week 1–2
+  ☐ Apply for AFAC commercial drone permit (via local partner) — Week 1
+  ☐ Secure work permits for 50 extras via local casting agency — Week 2–3
+  ☐ Confirm insurance coverage ($1M+ liability, workers' comp) — Week 2
 
 ### 6. Final Recommendation
 **Proceed with Mexico City** — strong infrastructure, experienced crews, competitive costs. Partner with a local production service (Story, We Produce, or 80 Days Films) to handle permits, hiring, and drone compliance. Budget **$9,500–$20,500/day** all-in. Start permit process **minimum 4 weeks before shoot**.
