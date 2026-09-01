@@ -40,8 +40,8 @@ def gm(prompt, retries=2):
     for attempt in range(retries):
         try:
             r = requests.post("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent",
-                json={"contents": [{"parts": [{"text": prompt}]}], "generationConfig": {"temperature": 0.7, "maxOutputTokens": 3000}},
-                params={"key": k}, timeout=45)
+                json={"contents": [{"parts": [{"text": prompt}]}], "generationConfig": {"temperature": 0.7, "maxOutputTokens": 8192}},
+                params={"key": k}, timeout=60)
             r.raise_for_status()
             return r.json()["candidates"][0]["content"]["parts"][0]["text"]
         except requests.exceptions.HTTPError as e:
@@ -135,9 +135,9 @@ Research:
         prompt += f"\n{c}:\n" + "\n".join(items) + "\n"
 
     prompt += """
-Write a comprehensive but concise report (max 2500 chars). Structure:
+Write a COMPLETE, DETAILED report (use full 8000 tokens). Structure:
 
-1. **Executive Summary** (2-3 sentences)
+1. **Executive Summary** (3-4 sentences with specific numbers)
 2. **Permits & Costs** — for each country use this format:
 ┌─────────────────────────────────────────────────────────────────┐
 │ COUNTRY NAME                                                    │
@@ -150,10 +150,10 @@ Write a comprehensive but concise report (max 2500 chars). Structure:
 └─────────────────────┴────────────────────────────────────────────┘
 3. **Bring vs Hire**: Gear rental daily rates, crew day rates, extras cost. Calculate totals. List vendor names. Use bullet points with •
 4. **Drone Rules** (if applicable) — bullet points with •
-5. **Actionable Checklist** (3-5 items per country) — checkboxes with ☐
-6. **Final Recommendation**
+5. **Actionable Checklist** (5-7 items per country with timelines) — checkboxes with ☐
+6. **Final Recommendation** with specific budget range
 
-Be specific. No "data unavailable". Use estimates marked as (estimate). Include source URLs as markdown links. NO markdown tables — use the box format above."""
+Be specific. No "data unavailable". Use estimates marked as (estimate). Include source URLs as markdown links. NO markdown tables — use the box format above. DO NOT truncate - write the full report."""
     
     result = gm(prompt)
     # Fallback to demo if API failed
