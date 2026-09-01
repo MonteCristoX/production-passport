@@ -82,6 +82,15 @@
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/>
                         </svg>
                     </button>
+                    <button 
+                        id="cancelBtn"
+                        onclick="cancelRequest()"
+                        class="absolute right-14 bottom-2 w-10 h-10 rounded-lg bg-red-600 hover:bg-red-500 flex items-center justify-center transition-colors hidden"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                        </svg>
+                    </button>
                 </div>
                 <p class="text-xs text-slate-500 mt-2 text-center">Powered by Gemini + Parallel Web Systems | Agentic Cinema Hackathon</p>
             </div>
@@ -93,6 +102,7 @@
         const userInput = document.getElementById('userInput');
         const sendBtn = document.getElementById('sendBtn');
         let isLoading = false;
+        let controller = null;
 
         function autoResize(el) {
             el.style.height = 'auto';
@@ -104,6 +114,17 @@
                 e.preventDefault();
                 sendMessage();
             }
+        }
+
+        function cancelRequest() {
+            if (controller) {
+                controller.abort();
+                controller = null;
+            }
+            isLoading = false;
+            removeTypingIndicator();
+            sendBtn.disabled = false;
+            userInput.focus();
         }
 
         function addMessage(content, isUser = false) {
@@ -193,13 +214,18 @@
             addTypingIndicator();
             isLoading = true;
             sendBtn.disabled = true;
+            document.getElementById('cancelBtn').classList.remove('hidden');
+            controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 120000);
 
             try {
                 const response = await fetch('/api/chat', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ message: text })
+                    body: JSON.stringify({ message: text }),
+                    signal: controller.signal
                 });
+                clearTimeout(timeoutId);
 
                 const data = await response.json();
                 removeTypingIndicator();
@@ -207,15 +233,22 @@
                 if (data.success) {
                     addMessage(data.response);
                 } else {
-                    addMessage('Sorry, I had trouble processing your request. Could you try again?');
+                    addMessage('Error: ' + (data.error || 'Could not process request'));
                 }
             } catch (err) {
+                clearTimeout(timeoutId);
                 removeTypingIndicator();
-                addMessage('Connection error. Please check your internet and try again.');
+                if (err.name === 'AbortError') {
+                    addMessage('Request timed out or was cancelled.');
+                } else {
+                    addMessage('Connection error. Check your internet and try again.');
+                }
             }
 
             isLoading = false;
             sendBtn.disabled = false;
+            document.getElementById('cancelBtn').classList.add('hidden');
+            controller = null;
             userInput.focus();
         }
     </script>
