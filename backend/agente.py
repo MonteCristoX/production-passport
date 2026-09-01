@@ -125,24 +125,21 @@ def create_app():
 
 
 def generate_docx(text):
-    """Generate a DOCX file from report text."""
+    """Generate a DOCX file from report text using temp file."""
     from docx import Document
-    from docx.shared import Pt, Inches
     from docx.enum.text import WD_ALIGN_PARAGRAPH
+    import tempfile
     
     doc = Document()
     
-    # Title
     title = doc.add_heading("Production Passport Report", level=0)
     title.alignment = WD_ALIGN_PARAGRAPH.CENTER
     
-    # Parse markdown-style text
     lines = text.split('\n')
     for line in lines:
         line = line.strip()
         if not line:
             continue
-        # Headings
         if line.startswith('####'):
             doc.add_heading(line.replace('#', '').strip(), level=4)
         elif line.startswith('###'):
@@ -151,11 +148,9 @@ def generate_docx(text):
             doc.add_heading(line.replace('#', '').strip(), level=2)
         elif line.startswith('#'):
             doc.add_heading(line.replace('#', '').strip(), level=1)
-        # Table rows
         elif line.startswith('|') and not line.startswith('|-'):
             cells = [c.strip() for c in line.split('|')[1:-1]]
             if len(cells) > 0 and not all(set(c) <= set('-: ') for c in cells):
-                # Find or create table
                 if len(doc.tables) == 0 or doc.tables[-1].rows[-1].cells[-1].text:
                     table = doc.add_table(rows=1, cols=len(cells))
                     table.style = 'Table Grid'
@@ -165,24 +160,22 @@ def generate_docx(text):
                     row = table.add_row()
                     for i, cell in enumerate(cells):
                         row.cells[i].text = cell
-        # Bullet points
         elif line.startswith('- ') or line.startswith('* '):
             doc.add_paragraph(line[2:], style='List Bullet')
-        # Numbered lists
         elif line and line[0].isdigit() and '. ' in line[:4]:
             doc.add_paragraph(line, style='List Number')
-        # Regular paragraph
         else:
-            # Remove markdown bold
             clean = line.replace('**', '')
             doc.add_paragraph(clean)
     
-    # Save to bytes
-    from io import BytesIO
-    buffer = BytesIO()
-    doc.save(buffer)
-    buffer.seek(0)
-    return buffer.read()
+    # Save to temp file and read back
+    with tempfile.NamedTemporaryFile(suffix='.docx', delete=False) as tmp:
+        doc.save(tmp.name)
+        with open(tmp.name, 'rb') as f:
+            data = f.read()
+        import os
+        os.unlink(tmp.name)
+    return data
 
 if __name__ == "__main__":
     app = create_app()
