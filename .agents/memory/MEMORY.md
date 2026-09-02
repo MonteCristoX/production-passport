@@ -1,1 +1,2 @@
 - [Google Drive connector runtime](google-drive-connector-runtime.md) — Python connector package is unavailable here; keep Drive uploads behind the supported Node connector SDK.
+- [GitHub push authentication](github-push-auth.md) — noninteractive gh login may not persist; use the configured PAT through a temporary askpass without embedding it in the remote URL.
