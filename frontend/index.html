@@ -79,6 +79,9 @@
             </div>
             <div class="flex items-center gap-2">
                 <span class="px-2 py-1 rounded-full bg-emerald-500/10 text-emerald-400 text-xs font-medium border border-emerald-500/20">● Online</span>
+                <button id="modeToggle" onclick="toggleMode()" class="px-2 py-1 rounded-full bg-slate-700 text-slate-300 text-xs font-medium border border-slate-600 hover:bg-slate-600 transition-colors">
+                    🔌 Live
+                </button>
             </div>
         </div>
     </header>
@@ -147,6 +150,19 @@
         const sendBtn = document.getElementById('sendBtn');
         let isLoading = false;
         let controller = null;
+        let demoMode = false;
+
+        function toggleMode() {
+            demoMode = !demoMode;
+            const btn = document.getElementById('modeToggle');
+            if (demoMode) {
+                btn.innerHTML = '📚 Demo';
+                btn.className = 'px-2 py-1 rounded-full bg-amber-500/20 text-amber-300 text-xs font-medium border border-amber-500/30 hover:bg-amber-500/30 transition-colors';
+            } else {
+                btn.innerHTML = '🔌 Live';
+                btn.className = 'px-2 py-1 rounded-full bg-emerald-500/20 text-emerald-300 text-xs font-medium border border-emerald-500/30 hover:bg-emerald-500/30 transition-colors';
+            }
+        }
 
         function autoResize(el) {
             el.style.height = 'auto';
@@ -514,7 +530,10 @@
                 const response = await fetch('/api/chat', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ message: text }),
+                    body: JSON.stringify({ 
+                        message: text,
+                        demo_mode: demoMode
+                    }),
                     signal: controller.signal
                 });
                 clearTimeout(timeoutId);

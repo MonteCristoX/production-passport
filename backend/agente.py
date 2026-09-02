@@ -496,7 +496,7 @@ PROCEED WITH MEXICO CITY — strong infrastructure, experienced crews, competiti
     return report
 
 
-def process_query(message):
+def process_query(message, demo_mode=False):
     """Main query processor with live research."""
     # Extract info first
     data = extract_production_info(message)
@@ -505,7 +505,7 @@ def process_query(message):
         return generate_demo_report(data)
     
     # Check if we should use demo mode
-    use_demo = not get_key("PARALLEL_API_KEY") or not get_key("GEMINI_API_KEY")
+    use_demo = demo_mode or not get_key("PARALLEL_API_KEY") or not get_key("GEMINI_API_KEY")
     
     if use_demo:
         return generate_demo_report(data)
@@ -632,9 +632,10 @@ def create_app():
     def chat():
         data = request.json
         msg = data.get("message", "")
+        demo_mode = data.get("demo_mode", False)
         if not msg: return jsonify({"success": False, "error": "Empty message"}), 400
         try: 
-            result = process_query(msg)
+            result = process_query(msg, demo_mode=demo_mode)
             return jsonify({"success": True, "response": result})
         except Exception as e: 
             import traceback
