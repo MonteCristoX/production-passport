@@ -231,7 +231,14 @@
                 removeTypingIndicator();
 
                 if (data.success) {
-                    addMessage(data.response);
+                    if (data.response.startsWith('<!DOCTYPE html>') || data.response.startsWith('<html')) {
+                        // HTML response - open in new tab/window
+                        const newWindow = window.open('', '_blank');
+                        newWindow.document.write(data.response);
+                        newWindow.document.close();
+                    } else {
+                        addMessage(data.response);
+                    }
                 } else {
                     addMessage('Error: ' + (data.error || 'Could not process request'));
                 }
