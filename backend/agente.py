@@ -40,9 +40,6 @@ def gm(prompt, retries=2):
     if not k:
         return "Error: GEMINI_API_KEY not configured"
     
-    # Detect key type and choose appropriate models
-    is_vertex_key = k.startswith("AQ.") or not k.startswith("AIza")
-    
     models_to_try = ["gemini-1.5-flash", "gemini-1.5-pro"]
     
     for model in models_to_try:
@@ -72,7 +69,32 @@ def extract_production_info(message):
     """Extract production info from message - country is required."""
     msg_lower = message.lower()
     
-    # Countries - FILM-INDUSTRY STANDARD COUNTRIES (major hubs)
+    # Extract location (coordinates or place name)
+    location = None
+    location_type = "unknown"
+    
+    # Check for Google Maps coordinates (lat, lng)
+    coord_match = re.search(r'(-?\d+\.?\d*)\s*,\s*(-?\d+\.?\d*)', message)
+    if coord_match:
+        lat = float(coord_match.group(1))
+        lng = float(coord_match.group(2))
+        location = {"lat": lat, "lng": lng, "name": f"Coordinates: {lat}, {lng}"}
+        location_type = "coordinates"
+    
+    # Check for Google Maps URL
+    maps_url_match = re.search(r'(https?://(?:www\.)?google\.com/maps/[^\s]+)', message)
+    if maps_url_match:
+        location = {"url": maps_url_match.group(1), "name": "Google Maps Location"}
+        location_type = "maps_url"
+    
+    # Check for "near [place]" or "in [place]"
+    if not location:
+        near_match = re.search(r'(?:near|in|at|around)\s+([A-Z][a-z]+(?:\s[A-Z][a-z]+)*)', message)
+        if near_match:
+            location = {"name": near_match.group(1)}
+            location_type = "place_name"
+    
+    # Countries - FILM-INDUSTRY STANDARD COUNTRIES
     film_countries = {
         "mexico": "Mexico", "méxico": "Mexico", "mexico city": "Mexico", "ciudad de mexico": "Mexico",
         "colombia": "Colombia", "bogota": "Colombia", "bogotá": "Colombia",
@@ -103,27 +125,27 @@ def extract_production_info(message):
     }
     
     countries = []
-    found_country = False
     for key, val in film_countries.items():
         if key in msg_lower:
             if val not in countries:
                 countries.append(val)
-            found_country = True
     
     # If no country specified, ask user
     if not countries:
         return {"error": True, "message": "Please specify a destination country for filming. Examples: Mexico, Colombia, Spain, Japan, USA, etc."}
     
-    # Location type
-    location_type = "urban"
-    if any(w in msg_lower for w in ["colonial", "historic", "old town", "centro Historico", "ciudad antigua"]):
-        location_type = "heritage"
-    elif any(w in msg_lower for w in ["mountain", "beach", "forest", "desert", "nature", "outdoor", "nature reserve", "ecological"]):
-        location_type = "natural"
-    elif any(w in msg_lower for w in ["studio", "indoor", "interior", "soundstage", "backlot"]):
-        location_type = "studio"
-    elif any(w in msg_lower for w in ["aerial", "drone", "fly", "aerial shot", "aerial footage"]):
-        location_type = "aerial"
+    # Scene type / location type
+    location_scene_type = "urban"
+    if any(w in msg_lower for w in ["colonial", "historic", "old town", "centro Historico"]):
+        location_scene_type = "heritage"
+    elif any(w in msg_lower for w in ["mountain", "beach", "forest", "desert", "nature", "outdoor"]):
+        location_scene_type = "natural"
+    elif any(w in msg_lower for w in ["studio", "indoor", "interior", "soundstage"]):
+        location_scene_type = "studio"
+    elif any(w in msg_lower for w in ["aerial", "drone", "fly", "aerial shot"]):
+        location_scene_type = "aerial"
+    elif any(w in msg_lower for w in ["water", "lake", "river", "sea", "ocean", "underwater"]):
+        location_scene_type = "water"
     
     # Extras
     extras = 0
@@ -131,25 +153,32 @@ def extract_production_info(message):
     if extras_match:
         extras = int(extras_match.group(1))
     
+    # Crew size
+    crew_size = 0
+    crew_match = re.search(r'(\d+)\s*(?:crew|people|person|staff|team)', msg_lower)
+    if crew_match:
+        crew_size = int(crew_match.group(1))
+    else:
+        crew_size = 10  # default estimate
+    
     # Drones
     drones = any(w in msg_lower for w in ["drone", "drones", "uav", "aerial", "quadcopter", "fpv"])
     
     # Pyrotechnics
-    pyrotechnics = any(w in msg_lower for w in ["pyro", "pyrotechnics", "fireworks", "explosion", "fire", "burn", "car explosion", "exploding car"])
+    pyrotechnics = any(w in msg_lower for w in ["pyro", "pyrotechnics", "fireworks", "explosion", "fire", "burn"])
     
     # Night shoot
-    night_shoot = any(w in msg_lower for w in ["night", "evening", "dusk", "dark", "after dark", "night scene"])
+    night_shoot = any(w in msg_lower for w in ["night", "evening", "dusk", "dark", "after dark"])
     
     # Water related
-    water_related = any(w in msg_lower for w in ["water", "lake", "river", "sea", "ocean", "pool", "boat", "ship", "vessel", "marine"])
+    water_related = any(w in msg_lower for w in ["water", "lake", "river", "sea", "ocean", "pool", "boat", "ship"])
     
-    # Budget - multiple patterns
+    # Budget
     budget_usd = 0
     budget_patterns = [
         r'(?:budget|cost|spend|invest\s+of)\s*\$?(\d{1,3}(?:,\d{3})*(?:\.\d+)?)\s*(k|thousand|million|m|usd)?',
         r'\$(\d{1,3}(?:,\d{3})*(?:\.\d+)?)\s*(k|thousand|million|m)',
         r'(\d{1,3}(?:,\d{3})*(?:\.\d+)?)\s*(?:million|m)\s*(?:budget|project|film|cost)',
-        r'(?:budget\s+of\s+)?\$?(\d{1,3})\s*(?:to\s+)?\d{1,3}(?:,\d{3})*\s*(?:k|thousand)?',
     ]
     for pattern in budget_patterns:
         budget_match = re.search(pattern, msg_lower)
@@ -165,8 +194,11 @@ def extract_production_info(message):
     
     return {
         "countries": countries,
+        "location": location,
         "location_type": location_type,
+        "scene_type": location_scene_type,
         "extras": extras,
+        "crew_size": crew_size,
         "drones": drones,
         "pyrotechnics": pyrotechnics,
         "night_shoot": night_shoot,
@@ -176,18 +208,200 @@ def extract_production_info(message):
     }
 
 
+def get_country_info(country):
+    """Get country-specific film production info."""
+    info = {
+        "Mexico": {
+            "risk": "HIGH",
+            "permit_cost": "$500 – $5,000/day",
+            "processing_time": "10 – 15 business days",
+            "restrictions": "• No foreign drone operators allowed\n• AFAC commercial permit mandatory\n• Extras need individual work permits",
+            "showstoppers": "• Drone ban for foreigners\n• Extra work permits required\n• Heritage site restrictions",
+            "insurance": "• Mexican insurers: AXA Mexico, GNP Seguros\n• Foreign equipment: Allianz Global, Hiscox\n• Worker comp: IMSS (mandatory for local hires)",
+            "medical": "• Public: IMSS, ISSSTE, INSABI\n• Private: Hospital Angeles, Hospital ABC, Médica Sur\n• Travel insurance required for foreign crew"
+        },
+        "Colombia": {
+            "risk": "MEDIUM",
+            "permit_cost": "$300 – $3,000/day",
+            "processing_time": "5 – 10 business days",
+            "restrictions": "• Film commission approval required\n• Drone permits via Aerocivil\n• Extras need temporary work visas",
+            "showstoppers": "• Visa requirements for crew\n• Customs delays for gear\n• Language barriers",
+            "insurance": "• Colombian insurers: SURA, Mapfre, Bolívar\n• Foreign equipment: Lloyd's of London, AIG\n• Worker comp: ARL (mandatory)",
+            "medical": "• Public: EPS system\n• Private: Hospital Universitario San Ignacio, Clínica del Country\n• Travel insurance required"
+        },
+        "Spain": {
+            "risk": "MEDIUM",
+            "permit_cost": "$200 – $4,000/day",
+            "processing_time": "10 – 20 business days",
+            "restrictions": "• Autonomous region approvals\n• Heritage site restrictions\n• EU regulations for drone",
+            "showstoppers": "• Autonomy region bureaucracy\n• Spanish bureaucracy\n• Heritage site permits",
+            "insurance": "• Spanish insurers: Mapfre, Allianz Spain, AXA Spain\n• EU equipment: covered under EU regulations\n• Worker comp: Mutualidad (mandatory)",
+            "medical": "• Public: SNS (Spanish Health System)\• Private: Hospital Quirón, Hospital Clínic\n• EU crew: EHIC card accepted"
+        },
+        "Japan": {
+            "risk": "HIGH",
+            "permit_cost": "$1,000 – $10,000/day",
+            "processing_time": "14 – 30 days",
+            "restrictions": "• Foreign crew limitations\n• Strict drone regulations\n• Location permits complex",
+            "showstoppers": "• Strict foreign crew rules\n• Complex bureaucracy\n• High permit costs",
+            "insurance": "• Japanese insurers: Tokio Marine, Sompo Japan\n• Foreign equipment: requires local insurance\n• Worker comp: Workers' Accident Compensation",
+            "medical": "• Public: NHI (National Health Insurance)\• Private: St. Luke's International, Tokyo Medical University\n• Travel insurance required"
+        },
+        "United States": {
+            "risk": "LOW-MEDIUM",
+            "permit_cost": "$100 – $2,000/day",
+            "processing_time": "5 – 14 business days",
+            "restrictions": "• State-specific permits\n• Location releases needed\n• Union regulations",
+            "showstoppers": "• Union pickup fees\n• Insurance requirements\n• Location release laws",
+            "insurance": "• US insurers: Film Emissary, AIG Entertainment, Nationwide\n• Equipment: inland marine policy\n• Worker comp: state-mandated",
+            "medical": "• Private: Mayo Clinic, Cedars-Sinai, NYU Langone\n• Insurance: employer-provided or ACA\n• Travel insurance recommended"
+        }
+    }
+    # Default fallback
+    if country not in info:
+        return {
+            "risk": "MEDIUM",
+            "permit_cost": "$200 – $4,000/day",
+            "processing_time": "7 – 21 business days",
+            "restrictions": "• Local film commission approval needed\n• Check specific location rules\n• Verify drone regulations",
+            "showstoppers": "• Unknown local regulations\n• Permit processing delays\n• Language barriers",
+            "insurance": "• Local insurance required\n• Foreign equipment: international policy\n• Worker comp: check local laws",
+            "medical": "• Local hospitals: verify coverage\n• Travel insurance required\n• Emergency services: check availability"
+        }
+    return info[country]
+
+
+def generate_location_context(data):
+    """Generate context about the specific filming location."""
+    location = data.get("location")
+    if not location:
+        return ""
+    
+    context = "\n\nFILAMINATION LOCATION:\n"
+    
+    if data["location_type"] == "coordinates":
+        context += f"- Coordinates: {location['lat']}, {location['lng']}\n"
+        context += f"- Google Maps: https://www.google.com/maps?q={location['lat']},{location['lng']}\n"
+    elif data["location_type"] == "maps_url":
+        context += f"- Google Maps URL: {location['url']}\n"
+    elif data["location_type"] == "place_name":
+        context += f"- Place: {location['name']}\n"
+    
+    context += f"- Scene type: {data['scene_type']}\n"
+    context += f"- Crew size: {data['crew_size']}\n"
+    
+    return context
+
+
+def generate_insurance_section(data):
+    """Generate insurance requirements section."""
+    countries_str = ", ".join(data["countries"])
+    has_equipment = data.get("drones", False) or data.get("pyrotechnics", False)
+    
+    section = f"""
+### 7. INSURANCE REQUIREMENTS
+
+#### Medical Insurance (Crew: {data['crew_size']} people)
+  • Travel medical insurance for foreign crew (min $100K coverage)
+  • Emergency evacuation coverage
+  • Repatriation coverage
+  • Pre-existing condition coverage for seniors
+
+#### Equipment Insurance - Brought to Location
+  • All-risk equipment coverage (theft, damage, loss)
+  • Transit insurance (door-to-door)
+  • Replacement value coverage
+  • Deductible: typically 1-2% of equipment value
+
+#### Equipment Insurance - Rented Locally
+  • Damage waiver (CDW) from rental house
+  • Liability for damage beyond normal wear
+  • Theft protection
+  • Verify rental house insurance vs own coverage
+
+#### Liability Insurance
+  • General liability: $1M-$5M per occurrence
+  • Third-party injury coverage
+  • Property damage coverage
+  • Required by most locations
+
+Recommended Insurance Providers:
+  • Film Emissary (US)
+  • AIG Entertainment (Global)
+  • Hiscox (International)
+  • Allianz Global (International)
+  • Lloyd's of London (High-value)
+"""
+    
+    # Country-specific insurance
+    for c in data["countries"]:
+        info = get_country_info(c)
+        section += f"\n{c} Specific:\n{info['insurance']}\n"
+    
+    return section
+
+
+def generate_logistics_section(data):
+    """Generate logistics section with hotels, food, hospitals."""
+    countries_str = ", ".join(data["countries"])
+    crew_size = data.get("crew_size", 10)
+    
+    section = f"""
+### 8. LOGISTICS & AMENITIES
+
+#### Hotels (Crew: {crew_size} people)
+  • Production-friendly hotels with:
+    - Early breakfast (5-6 AM)
+    - Late return accommodation
+    - Equipment storage
+    - Group booking discounts
+  • Recommended: contact local production services for preferred hotels
+
+#### Food & Catering
+  • On-set catering requirements
+    - 12-16 hour shooting days = 3 meals + snacks
+    - Dietary restrictions (vegan, gluten-free, allergies)
+    - Hot meals minimum every 6 hours
+  • Local restaurants within 30 min of location
+  • Craft services (snacks/drinks on set)
+
+#### Nearby Hospitals
+  • Verify nearest hospital with ER/urgent care
+  • Trauma center for stunts/pyrotechnics
+  • Hospital with foreign language support
+  • Emergency contact numbers
+
+#### Transportation
+  • Production vehicle rental
+    - Cube trucks for equipment
+    - Passenger vans for cast/crew
+    - Generator trucks
+    - Makeup/wardrobe trailers
+"""
+    
+    # Country-specific medical
+    for c in data["countries"]:
+        info = get_country_info(c)
+        section += f"\n{c} Medical System:\n{info['medical']}\n"
+    
+    return section
+
+
 def generate_demo_report(data):
-    """Generate a text-based demo report."""
+    """Generate a comprehensive text-based demo report."""
     if data.get("error"):
         return f"**{data['message']}**"
     
     countries_str = ", ".join(data["countries"])
     extras_str = f"{data['extras']} extras" if data['extras'] > 0 else "no extras"
+    crew_str = f"{data['crew_size']} crew" if data['crew_size'] > 0 else "standard crew"
     drones_str = "with drones" if data['drones'] else "no drones"
     pyrotechnics_str = "with pyrotechnics" if data['pyrotechnics'] else "no pyrotechnics"
     night_str = "night shooting" if data['night_shoot'] else "day shooting"
     budget_str = f"${data['budget_usd']:,}" if data['budget_usd'] > 0 else "not specified"
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    
+    location_context = generate_location_context(data)
     
     report = f"""## Film Production Report
 Generated: {timestamp}
@@ -195,7 +409,7 @@ Generated: {timestamp}
 Demo mode — connect Parallel API + Gemini API keys for live research
 
 ### 1. Executive Summary
-Production for {countries_str} ({data['location_type']} location) with {extras_str}, {drones_str}, {pyrotechnics_str}, {night_str}. Budget: {budget_str}. Key challenges: permits, crew, compliance.
+Production for {countries_str} ({data['scene_type']} location) with {extras_str}, {crew_str}, {drones_str}, {pyrotechnics_str}, {night_str}. Budget: {budget_str}. Key challenges: permits, crew, compliance.{location_context}
 
 ### 2. Country Analysis
 """
@@ -212,58 +426,72 @@ Production for {countries_str} ({data['location_type']} location) with {extras_s
 {info['showstoppers']}
 """
     
+    report += """
+### 3. Bring vs Hire: Cost Analysis
+
+Gear Rental (Daily Rates - Estimated):
+  • Camera package (ARRI Alexa Mini / RED): $400 – $800/day
+  • Lens set (cine primes): $200 – $400/day
+  • Lighting package (HMI/LED): $300 – $600/day
+  • Grip equipment: $150 – $300/day
+
+Crew Day Rates (Local Hire - Estimated):
+  • Director of Photography: $600 – $1,200/day
+  • Gaffer / Key Grip: $350 – $600/day
+  • Camera Assistant (1st/2nd AC): $250 – $450/day
+  • Production Manager: $400 – $800/day
+  • Location Manager: $300 – $500/day
+  • Sound Mixer: $350 – $600/day
+  • Extras (50 people): $75 – $150/person/day = $3,750 – $7,500/day
+
+Estimated Daily Total (local hire): $6,000 – $12,000/day
+Estimated Daily Total (bring crew): $10,000 – $20,000/day (incl. travel, per diem, insurance)
+
+RECOMMENDATION: HIRE LOCALLY — saves 40–50% and avoids visa/logistics complexity.
+
+Local Vendors (Mexico):
+  • Story (story.mx) — Full service production
+  • We Produce (weproduce.mx) — Equipment & crew
+  • 80 Days Films (80daysfilms.com) — International co-productions
+"""
+    
+    if data['drones']:
+        report += """
+### 4. Drone Rules (Mexico)
+  • AFAC permit required for ALL commercial operations (no exceptions)
+  • Foreign operators must partner with Mexican certified operator
+  • Max altitude: 400 ft (120 m); VLOS mandatory
+  • No-fly zones: airports, military, government buildings, crowds
+  • Processing: 15–30 days; cost ~$2,000–$5,000 USD
+  • Insurance: $1M+ liability required
+"""
+    
+    report += """
+### 5. Actionable Checklist
+
+Mexico:
+  ☐ Hire Mexican production service company (fixer) — Week 1
+  ☐ Submit film permit application to Mexico City Film Commission — Week 1–2
+  ☐ Apply for AFAC commercial drone permit (via local partner) — Week 1
+  ☐ Secure work permits for 50 extras via local casting agency — Week 2–3
+  ☐ Confirm insurance coverage ($1M+ liability, workers' comp) — Week 2
+  ☐ Book production-friendly hotels with early breakfast
+  ☐ Arrange on-set catering (3 meals + snacks)
+  ☐ Verify nearest hospital with ER and foreign language support
+  ☐ Rent production vehicles (cube truck, passenger van, trailer)
+"""
+    
+    report += """
+### 6. Final Recommendation
+
+PROCEED WITH MEXICO CITY — strong infrastructure, experienced crews, competitive costs. Partner with a local production service (Story, We Produce, or 80 Days Films) to handle permits, hiring, and drone compliance. Budget **$9,500–$20,500/day** all-in. Start permit process **minimum 4 weeks before shoot**.
+"""
+    
+    # Add new sections
+    report += generate_insurance_section(data)
+    report += generate_logistics_section(data)
+    
     return report
-
-
-def get_country_info(country):
-    """Get country-specific film production info."""
-    info = {
-        "Mexico": {
-            "risk": "HIGH",
-            "permit_cost": "$500 – $5,000/day",
-            "processing_time": "10 – 15 business days",
-            "restrictions": "• No foreign drone operators allowed\n• AFAC commercial permit mandatory\n• 50 extras need individual work permits",
-            "showstoppers": "• Drone ban for foreigners\n• Extra work permits required\n• Heritage site restrictions"
-        },
-        "Colombia": {
-            "risk": "MEDIUM",
-            "permit_cost": "$300 – $3,000/day",
-            "processing_time": "5 – 10 business days",
-            "restrictions": "• Film commission approval required\n• Drone permits via Aerocivil\n• Extras need temporary work visas",
-            "showstoppers": "• Visa requirements for crew\n• Customs delays for gear\n• Language barriers"
-        },
-        "Spain": {
-            "risk": "MEDIUM",
-            "permit_cost": "$200 – $4,000/day",
-            "processing_time": "10 – 20 business days",
-            "restrictions": "• Autonomous region approvals\n• Heritage site restrictions\n• EU regulations for drone",
-            "showstoppers": "• Autonomy region bureaucracy\n• Spanish bureaucracy\n• Heritage site permits"
-        },
-        "Japan": {
-            "risk": "HIGH",
-            "permit_cost": "$1,000 – $10,000/day",
-            "processing_time": "14 – 30 days",
-            "restrictions": "• Foreign crew limitations\n• Strict drone regulations\n• Location permits complex",
-            "showstoppers": "• Strict foreign crew rules\n• Complex bureaucracy\n• High permit costs"
-        },
-        "United States": {
-            "risk": "LOW-MEDIUM",
-            "permit_cost": "$100 – $2,000/day",
-            "processing_time": "5 – 14 business days",
-            "restrictions": "• State-specific permits\n• Location releases needed\n• Union regulations",
-            "showstoppers": "• Union pickup fees\n• Insurance requirements\n• Location release laws"
-        }
-    }
-    # Default fallback
-    if country not in info:
-        return {
-            "risk": "MEDIUM",
-            "permit_cost": "$200 – $4,000/day",
-            "processing_time": "7 – 21 business days",
-            "restrictions": "• Local film commission approval needed\n• Check specific location rules\n• Verify drone regulations",
-            "showstoppers": "• Unknown local regulations\n• Permit processing delays\n• Language barriers"
-        }
-    return info[country]
 
 
 def process_query(message):
@@ -298,6 +526,17 @@ def process_query(message):
             
             if data['pyrotechnics']:
                 futures[executor.submit(ps, f"{c} pyrotechnics filming permit special effects")] = (c, "pyro")
+            
+            # Insurance searches
+            futures[executor.submit(ps, f"{c} film production insurance equipment rental")] = (c, "equipment_insurance")
+            futures[executor.submit(ps, f"{c} medical insurance film crew actors extras")] = (c, "medical_insurance")
+            
+            # Logistics searches
+            if data.get("location"):
+                location_name = data["location"].get("name", c)
+                futures[executor.submit(ps, f"hotels near {location_name} film production crew")] = (c, "hotels")
+                futures[executor.submit(ps, f"hospitals near {location_name} emergency trauma")] = (c, "hospitals")
+                futures[executor.submit(ps, f"restaurants near {location_name} catering group bookings")] = (c, "restaurants")
         
         # Collect all search results
         for future in as_completed(futures, timeout=60):
@@ -310,16 +549,19 @@ def process_query(message):
                 print(f"Search error for {c} {dtype}: {e}")
     
     # Build prompt for Gemini
+    location_context = generate_location_context(data)
+    
     prompt = f"""Film production analysis for {countries_str}.
-
 PRODUCTION DETAILS:
 - Countries: {countries_str}
-- Location type: {data['location_type']}
+- Location type: {data['scene_type']}
 - Extras: {data['extras']}
+- Crew size: {data['crew_size']}
 - Drones: {data['drones']}
 - Pyrotechnics: {data['pyrotechnics']}
 - Night shoot: {data['night_shoot']}
 - Budget: ${data['budget_usd']:,} (if specified)
+{location_context}
 
 CRITICAL SEARCH RESULTS:
 """
@@ -330,7 +572,7 @@ CRITICAL SEARCH RESULTS:
                 prompt += f"- {src.get('title', '')}: {src.get('url', '')}\n"
     
     prompt += """
-WRITE A DETAILED REPORT WITH SHOWSTOPPERS SECTION.
+WRITE A COMPREHENSIVE FILM PRODUCTION REPORT.
 
 Structure:
 1. Executive Summary
@@ -346,11 +588,22 @@ Country Name [RISK]
     ⚠️ CRITICAL ISSUES (referrals, drone bans, visa requirements)
     • Issue 1
     • Issue 2
-3. Cost Analysis
+3. Bring vs Hire: cost analysis with bullet points
 4. Drone Rules (if applicable) with showstoppers
 5. Visa/Citizenship Requirements for crew
 6. Actionable Checklist with deadlines
 7. Final Recommendation with budget
+8. Insurance Requirements:
+   - Medical insurance for crew (min $100K coverage)
+   - Equipment insurance (brought to location)
+   - Equipment insurance (rented locally)
+   - Liability insurance ($1M-$5M)
+   - Recommended providers
+9. Logistics & Amenities:
+   - Hotels (production-friendly, early breakfast)
+   - Food & Catering (3 meals + snacks, dietary restrictions)
+   - Nearby hospitals (ER, trauma, foreign language)
+   - Transportation (cube truck, passenger van, trailer)
 
 Be extremely specific about what could STOP production. List actual legal barriers."""
     
@@ -421,7 +674,6 @@ def create_app():
 def generate_docx(text):
     from docx import Document
     from docx.enum.text import WD_ALIGN_PARAGRAPH
-    from docx.shared import Pt
     import tempfile
     
     doc = Document()
@@ -432,7 +684,6 @@ def generate_docx(text):
     
     # Process text line by line
     lines = text.split('\n')
-    current_list = None
     
     for line in lines:
         line = line.strip()
@@ -442,31 +693,25 @@ def generate_docx(text):
         # Headers
         if line.startswith('## '):
             doc.add_heading(line[3:].strip(), level=2)
-            current_list = None
         elif line.startswith('### '):
             doc.add_heading(line[4:].strip(), level=3)
-            current_list = None
         # Checklists with ☐
         elif '☐' in line:
             clean = line.replace('☐', '').strip().lstrip('•').strip()
             if clean:
                 doc.add_paragraph(clean).style = 'List Bullet'
-                current_list = 'checklist'
         # Bullet points
         elif '•' in line:
             clean = line.lstrip('•').strip()
             if clean:
                 doc.add_paragraph(clean).style = 'List Bullet'
-                current_list = 'list'
         # Country info with tree structure
         elif any(x in line for x in ['├──', '└──', '│', '[HIGH]', '[MEDIUM]', '[LOW]']):
-            # Tree structure line
             clean = line.replace('├── ', '').replace('└── ', '').replace('│', '').strip()
             if clean:
                 doc.add_paragraph(clean)
         # Regular paragraphs
         elif line and not line.startswith('[') and '|' not in line:
-            # Clean up formatting
             clean = line.replace('**', '').strip()
             if clean and len(clean) > 2:
                 doc.add_paragraph(clean)
