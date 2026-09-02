@@ -699,37 +699,66 @@ def generate_docx(text):
     
     # Process text line by line
     lines = text.split('\n')
-    
-    for line in lines:
+    summary_lines, summary_indexes = extract_executive_summary(lines)
+    if summary_lines:
+        doc.add_heading("Executive Summary", level=1)
+        for summary_line in summary_lines:
+            clean_summary = summary_line.strip()
+            if not clean_summary:
+                continue
+            if clean_summary.startswith('•') or clean_summary.startswith('- '):
+                doc.add_paragraph(clean_summary.lstrip('•').lstrip('- ').strip(), style='List Bullet')
+            else:
+                doc.add_paragraph(clean_summary.replace('**', ''))
+
+    for index, line in enumerate(lines):
+        if index in summary_indexes:
+            continue
         line = line.strip()
         if not line:
             continue
-        
-        # Headers
-        if line.startswith('## '):
-            doc.add_heading(line[3:].strip(), level=2)
-        elif line.startswith('### '):
-            doc.add_heading(line[4:].strip(), level=3)
-        # Checklists with ☐
+        heading = report_heading(line)
+        if heading:
+            doc.add_heading(heading, level=2)
+        elif line.startswith('####'):
+            doc.add_heading(line.replace('#', '').strip(), level=4)
+        elif line.startswith('###'):
+            doc.add_heading(line.replace('#', '').strip(), level=3)
+        elif line.startswith('##'):
+            doc.add_heading(line.replace('#', '').strip(), level=2)
+        elif line.startswith('#'):
+            doc.add_heading(line.replace('#', '').strip(), level=1)
+        elif line.startswith('|') and not line.startswith('|-'):
+            cells = [c.strip() for c in line.split('|')[1:-1]]
+            if len(cells) > 0 and not all(set(c) <= set('-: ') for c in cells):
+                if len(doc.tables) == 0 or doc.tables[-1].rows[-1].cells[-1].text:
+                    table = doc.add_table(rows=1, cols=len(cells))
+                    table.style = 'Table Grid'
+                    for i, cell in enumerate(cells):
+                        table.rows[0].cells[i].text = cell
+                else:
+                    row = table.add_row()
+                    for i, cell in enumerate(cells):
+                        row.cells[i].text = cell
         elif '☐' in line:
             clean = line.replace('☐', '').strip().lstrip('•').strip()
             if clean:
-                doc.add_paragraph(clean).style = 'List Bullet'
-        # Bullet points
+                doc.add_paragraph(clean, style='List Bullet')
         elif '•' in line:
             clean = line.lstrip('•').strip()
             if clean:
-                doc.add_paragraph(clean).style = 'List Bullet'
-        # Country info with tree structure
+                doc.add_paragraph(clean, style='List Bullet')
         elif any(x in line for x in ['├──', '└──', '│', '[HIGH]', '[MEDIUM]', '[LOW]']):
             clean = line.replace('├── ', '').replace('└── ', '').replace('│', '').strip()
             if clean:
                 doc.add_paragraph(clean)
-        # Regular paragraphs
-        elif line and not line.startswith('[') and '|' not in line:
-            clean = line.replace('**', '').strip()
-            if clean and len(clean) > 2:
-                doc.add_paragraph(clean)
+        elif line.startswith('- ') or line.startswith('* '):
+            doc.add_paragraph(line[2:], style='List Bullet')
+        elif line and line[0].isdigit() and '. ' in line[:4]:
+            doc.add_paragraph(line, style='List Number')
+        else:
+            clean = line.replace('**', '')
+            doc.add_paragraph(clean)
     
     # Save to temp file and return bytes
     with tempfile.NamedTemporaryFile(suffix='.docx', delete=False) as tmp:
@@ -739,6 +768,48 @@ def generate_docx(text):
         import os as o
         o.unlink(tmp.name)
     return data
+
+
+def report_heading(line):
+    clean = line.strip()
+    clean = re.sub(r"^#{1,4}\s*", "", clean)
+    clean = re.sub(r"^\d+\.\s*", "", clean)
+    clean = clean.replace("**", "").strip()
+    match = re.match(
+        r"^(Executive Summary|Permits & Costs|Bring vs Hire|Drone Rules|Actionable Checklist|Final Recommendation)\b",
+        clean,
+        flags=re.IGNORECASE,
+    )
+    return clean if match else None
+
+
+def extract_executive_summary(lines):
+    summary_start = None
+    summary_lines = []
+    for index, line in enumerate(lines):
+        clean = line.strip()
+        if re.search(r"\bExecutive Summary\b", clean, flags=re.IGNORECASE):
+            summary_start = index
+            inline_summary = re.sub(
+                r"^.*?Executive Summary\b", "", clean, flags=re.IGNORECASE
+            ).strip(" :-*")
+            if inline_summary and not re.fullmatch(r"\([^)]*\)", inline_summary):
+                summary_lines.append(inline_summary)
+            break
+
+    if summary_start is None:
+        return [], set()
+
+    summary_end = len(lines)
+    for index in range(summary_start + 1, len(lines)):
+        if report_heading(lines[index]) and not re.search(
+            r"\bExecutive Summary\b", lines[index], flags=re.IGNORECASE
+        ):
+            summary_end = index
+            break
+
+    summary_lines.extend(lines[summary_start + 1:summary_end])
+    return summary_lines, set(range(summary_start, summary_end))
 
 
 def build_report_filename(text):

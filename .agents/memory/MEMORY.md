@@ -1,0 +1,1 @@
+- [Google Drive connector runtime](google-drive-connector-runtime.md) — Python connector package is unavailable here; keep Drive uploads behind the supported Node connector SDK.

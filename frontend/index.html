@@ -324,6 +324,15 @@
             </section>`;
         }
 
+        function detectReportHeading(line) {
+            const clean = line.trim()
+                .replace(/^#{1,4}\s*/, '')
+                .replace(/^\d+\.\s*/, '')
+                .replace(/\*\*/g, '');
+            const match = clean.match(/^(Executive Summary|Permits & Costs|Bring vs Hire|Drone Rules|Actionable Checklist|Final Recommendation)\b/i);
+            return match ? clean : null;
+        }
+
         function formatReport(content) {
             const lines = String(content).replace(/\r/g, '').split('\n');
             const titleIndex = lines.findIndex(line => /^#{1,3}\s*Film Production Report/i.test(line));
@@ -334,10 +343,10 @@
             let current = null;
 
             reportLines.forEach(line => {
-                const heading = line.match(/^#{2,3}\s+(.+)$/);
+                const heading = detectReportHeading(line);
                 if (heading) {
                     if (current) sections.push(current);
-                    current = { title: heading[1], lines: [] };
+                    current = { title: heading, lines: [] };
                 } else if (current) {
                     current.lines.push(line);
                 }
