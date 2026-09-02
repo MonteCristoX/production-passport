@@ -43,15 +43,6 @@ def gm(prompt, retries=2):
     is_vertex_key = k.startswith("AQ.") or not k.startswith("AIza")
     
     if is_vertex_key:
-        # Try Vertex AI via SDK
-        try:
-            from gemini_vertex import init_vertex_ai, gm_vertex
-            if init_vertex_ai():
-                return gm_vertex(prompt)
-        except Exception as e:
-            print(f"Vertex AI init error: {e}")
-        
-        # Fallback to API endpoint
         models_to_try = [
             "gemini-1.5-flash",
             "gemini-1.5-flash-latest", 
@@ -60,7 +51,6 @@ def gm(prompt, retries=2):
             "gemini-2.0-flash-exp",
         ]
     else:
-        # AI Studio key
         models_to_try = [
             "gemini-1.5-flash",
             "gemini-1.5-flash-latest",
@@ -93,262 +83,109 @@ def gm(prompt, retries=2):
     
     return "Error: No working Gemini model found."
 
+
 def generate_demo_report(message):
-    """Generate a demo report with fancy HTML template."""
+    """Generate a text-based demo report (safe for chat display and DOCX)."""
     data = extract_production_info(message)
     
+    countries_str = ", ".join(data["countries"])
+    extras_str = f"{data['extras']} extras" if data['extras'] > 0 else "no extras"
+    drones_str = "with drones" if data['drones'] else "no drones"
+    budget_str = f"${data['budget_usd']:,}" if data['budget_usd'] > 0 else "not specified"
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     
-    # Generate risk badges
-    def risk_badge(level):
-        colors = {"HIGH": "badge-high", "MEDIUM": "badge-medium", "LOW": "badge-low"}
-        return f'<span class="badge {colors.get(level, "badge-medium")}">{level}</span>'
+    report = f"""## Film Production Report
+Generated: {timestamp}
+
+{"Demo mode — connect Parallel API + Gemini API keys for live research" if not get_key("GEMINI_API_KEY") or not get_key("PARALLEL_API_KEY") else ""}
+
+### 1. Executive Summary
+Production planned for {countries_str} ({data['location_type']} location) with {extras_str} and {drones_str}. Budget: {budget_str}. Key challenges include managing {data['extras']} extras in an urban environment and obtaining commercial drone permits where applicable. Local hiring is recommended for crew and extras to reduce costs and ensure compliance.
+
+### 2. Permits & Costs (Estimates)
+"""
     
-    # Build restricted list
-    def make_list(items):
-        return "\n".join(f"            {item}" for item in items)
-    
-    report_parts = []
-    
-    # Executive Summary
-    report_parts.append(f"""
-        <div class="section executive-summary">
-            <h2>🎯 Executive Summary</h2>
-            <p>Production planned for <strong>{', '.join(data['countries'])}</strong> ({data['location_type']} location) with {data['extras']} extras and {'drones' if data['drones'] else 'no drones'}. Budget: ${data['budget_usd']:,} if specified, otherwise not specified. Key challenges include permits, crew hiring, and compliance. Local hiring is recommended.</p>
-        </div>
-""")
-    
-    # Permits
     for c in data["countries"]:
         if c == "Mexico":
-            restrictions = ["No foreign drone operators", "AFAC commercial permit mandatory", "50 extras need permits"]
             risk = "HIGH"
             cost = "$500 – $5,000 per day"
             time_proc = "10 – 15 business days"
+            restrictions = "• No foreign drone operators allowed\n• AFAC commercial permit mandatory\n• 50 extras need individual work permits"
         elif c == "Colombia":
-            restrictions = ["Film commission approval required", "Drone permits via Aerocivil", "Extras need visas"]
             risk = "MEDIUM"
             cost = "$300 – $3,000 per day"
             time_proc = "5 – 10 business days"
+            restrictions = "• Film commission approval required\n• Drone permits via Aerocivil\n• Extras need temporary work visas"
         else:
-            restrictions = ["Local regulations vary", "Check film commission"]
             risk = "MEDIUM"
             cost = "$200 – $4,000 per day"
             time_proc = "5 – 20 business days"
+            restrictions = "• Local regulations vary\n• Check film commission"
         
-        report_parts.append(f"""        <div class="section country-card">
-            <h3>{c} {risk_badge(risk)}</h3>
-            <div class="cost-grid">
-                <div class="cost-item">
-                    <div class="label">Permit Cost</div>
-                    <div class="value">{cost}</div>
-                </div>
-                <div class="cost-item">
-                    <div class="label">Processing Time</div>
-                    <div class="value">{time_proc}</div>
-                </div>
-            </div>
-            <ul class="restriction-list">
-{make_list([f"<li>{r}</li>" for r in restrictions])}
-            </ul>
-        </div>
-""")
+        report += f"""
+{c} [{risk}]
+├── Permit Cost: {cost}
+├── Processing Time: {time_proc}
+└── Restrictions:
+{restrictions}
+"""
     
-    # Cost Analysis
-    report_parts.append("""
-        <div class="section cost-analysis">
-            <h2>💰 Bring vs Hire: Cost Analysis</h2>
-            <div class="cost-grid">
-                <div class="cost-item">
-                    <div class="label">Camera Package</div>
-                    <div class="value">$400 – $800/day</div>
-                </div>
-                <div class="cost-item">
-                    <div class="label">Crew (DP, Gaffer, AC)</div>
-                    <div class="value">$600 – $1,200/day</div>
-                </div>
-                <div class="cost-item">
-                    <div class="label">Extras (100)</div>
-                    <div class="value">$7,500 – $15,000</div>
-                </div>
-                <div class="cost-item">
-                    <div class="label">Daily Total</div>
-                    <div class="value">$6K – $12K</div>
-                </div>
-            </div>
-            <p><strong>Recommendation:</strong> HIRE LOCALLY — saves 40–50%</p>
-        </div>
-""")
-    
-    # Vendors
-    report_parts.append("""
-        <div class="section">
-            <h2>🏢 Local Vendors (Mexico)</h2>
-            <div class="vendor-grid">
-                <div class="vendor-card">
-                    <h4>Story</h4>
-                    <div class="url">story.mx</div>
-                </div>
-                <div class="vendor-card">
-                    <h4>We Produce</h4>
-                    <div class="url">weproduce.mx</div>
-                </div>
-                <div class="vendor-card">
-                    <h4>80 Days Films</h4>
-                    <div class="url">80daysfilms.com</div>
-                </div>
-            </div>
-        </div>
-""")
-    
-    # Drone Rules
-    if data['drones']:
-        drone_items = [
-            "AFAC permit required for ALL commercial operations",
-            "Foreign operators must partner with Mexican certified operator",
-            "Max altitude: 400 ft (120 m); VLOS mandatory",
-            "No-fly zones: airports, military, government buildings",
-            "Processing: 15–30 days; cost ~$2,000–$5,000 USD"
-        ]
-        report_parts.append(f"""
-        <div class="section drone-rules">
-            <h2>🚁 Drone Rules</h2>
-            <ul class="drone-list">
-{chr(10).join(f'                <li>{item}</li>' for item in drone_items)}
-            </ul>
-        </div>
-""")
-    
-    # Checklist
-    report_parts.append("""
-        <div class="section checklist-section">
-            <h2>📋 Actionable Checklist</h2>
-            <ul class="checklist">
-                <li><input type="checkbox"> Hire Mexican production service company — Week 1</li>
-                <li><input type="checkbox"> Submit film permit application — Week 1–2</li>
-                <li><input type="checkbox"> Apply for AFAC drone permit — Week 1</li>
-                <li><input type="checkbox"> Secure work permits for extras — Week 2–3</li>
-                <li><input type="checkbox"> Confirm insurance coverage — Week 2</li>
-            </ul>
-        </div>
-""")
-    
-    # Final Recommendation
-    report_parts.append("""
-        <div class="section recommendation">
-            <h2>✅ Final Recommendation</h2>
-            <p><strong>Proceed with Mexico City</strong> — strong infrastructure, experienced crews, competitive costs. Partner with Story, We Produce, or 80 Days Films for permits, hiring, and drone compliance. Budget <strong>$9,500–$20,500/day</strong> all-in. Start permit process <strong>minimum 4 weeks before shoot</strong>.</p>
-        </div>
-""")
-    
-    # Read template and inject content
-    template_path = os.path.join(os.path.dirname(__file__), 'template.html')
-    try:
-        with open(template_path, 'r') as f:
-            template = f.read()
-    except:
-        # Fallback to inline template
-        with open(__file__, 'r') as f:
-            template = f.read()
-    
-    # Simple template injection
-    content = ''.join(report_parts)
-    
-    # Return as HTML string
-    html = f"""<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Production Passport Report</title>
-    <style>
-        * {{ margin: 0; padding: 0; box-sizing: border-box; }}
-        body {{
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
-            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
-            color: #e4e4e4;
-            min-height: 100vh;
-            padding: 40px 20px;
-        }}
-        .container {{ max-width: 900px; margin: 0 auto; }}
-        .header {{
-            text-align: center;
-            padding: 30px;
-            background: linear-gradient(90deg, #0f3460, #1a1a2e);
-            border-radius: 16px;
-            margin-bottom: 25px;
-        }}
-        .header h1 {{
-            font-size: 2em;
-            background: linear-gradient(90deg, #e94560, #0f3460);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            margin-bottom: 10px;
-        }}
-        .header .timestamp {{ color: #888; font-size: 0.9em; }}
-        .section {{
-            background: rgba(255,255,255,0.05);
-            border-radius: 12px;
-            padding: 25px;
-            margin-bottom: 20px;
-            border: 1px solid rgba(255,255,255,0.1);
-        }}
-        .section h2 {{
-            font-size: 1.4em;
-            color: #e94560;
-            margin-bottom: 20px;
-            border-bottom: 2px solid #e94560;
-            padding-bottom: 10px;
-        }}
-        .country-card {{
-            background: rgba(15,52,96,0.4);
-            border-radius: 10px;
-            padding: 20px;
-            margin: 15px 0;
-            border-left: 4px solid #e94560;
-        }}
-        .country-card h3 {{ color: #e94560; margin-bottom: 15px; }}
-        .cost-grid {{
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-            gap: 15px;
-            margin: 15px 0;
-        }}
-        .cost-item {{
-            background: rgba(0,0,0,0.3);
-            padding: 15px;
-            border-radius: 8px;
-        }}
-        .cost-item .label {{ font-size: 0.8em; color: #888; text-transform: uppercase; }}
-        .cost-item .value {{ font-size: 1.2em; font-weight: bold; color: #00d9ff; margin-top: 5px; }}
-        .badge {{ display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 0.85em; font-weight: bold; margin-left: 10px; }}
-        .badge-high {{ background: rgba(233,69,96,0.2); color: #e94560; }}
-        .badge-medium {{ background: rgba(255,200,0,0.2); color: #f7c948; }}
-        .badge-low {{ background: rgba(0,200,83,0.2); color: #00c853; }}
-        .recommendation {{ background: linear-gradient(135deg, #0f3460, #1a1a2e); border: 2px solid #e94560; }}
-        .recommendation h2 {{ color: #e94560; }}
-        .vendor-grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px; }}
-        .vendor-card {{ background: rgba(233,69,96,0.15); border-radius: 8px; padding: 15px; border: 1px solid rgba(233,69,96,0.3); }}
-        .vendor-card h4 {{ color: #e94560; margin-bottom: 5px; }}
-        .vendor-card .url {{ font-size: 0.85em; color: #00d9ff; }}
-        .checklist input {{ margin-right: 10px; width: 18px; height: 18px; cursor: pointer; }}
-    </style>
-</head>
-<body>
-    <div class="container">
-        <div class="header">
-            <h1>🎬 Production Passport Report</h1>
-            <div class="timestamp">Generated: {timestamp}</div>
-        </div>
-        <p><em>Demo mode — connect Parallel API + Gemini API keys for live research</em></p>
-        
-{content}
-    </div>
-</body>
-</html>"""
-    
-    return html
+    report += """
+### 3. Bring vs Hire: Cost Analysis
 
+Gear Rental (Daily Rates - Estimated):
+  • Camera package (ARRI Alexa Mini / RED): $400 – $800/day
+  • Lens set (cine primes): $200 – $400/day
+  • Lighting package (HMI/LED): $300 – $600/day
+  • Grip equipment: $150 – $300/day
+
+Crew Day Rates (Local Hire - Estimated):
+  • Director of Photography: $600 – $1,200/day
+  • Gaffer / Key Grip: $350 – $600/day
+  • Camera Assistant (1st/2nd AC): $250 – $450/day
+  • Production Manager: $400 – $800/day
+  • Location Manager: $300 – $500/day
+  • Sound Mixer: $350 – $600/day
+  • Extras (50 people): $75 – $150/person/day = $3,750 – $7,500/day
+
+Estimated Daily Total (local hire): $6,000 – $12,000/day
+Estimated Daily Total (bring crew): $10,000 – $20,000/day (incl. travel, per diem, insurance)
+
+RECOMMENDATION: HIRE LOCALLY — saves 40–50% and avoids visa/logistics complexity.
+
+Local Vendors (Mexico):
+  • Story (story.mx) — Full service production
+  • We Produce (weproduce.mx) — Equipment & crew
+  • 80 Days Films (80daysfilms.com) — International co-productions
+"""
+    
+    if data['drones']:
+        report += """
+### 4. Drone Rules (Mexico)
+  • AFAC permit required for ALL commercial operations (no exceptions)
+  • Foreign operators must partner with Mexican certified operator
+  • Max altitude: 400 ft (120 m); VLOS mandatory
+  • No-fly zones: airports, military, government buildings, crowds
+  • Processing: 15–30 days; cost ~$2,000–$5,000 USD
+  • Insurance: $1M+ liability required
+"""
+    
+    report += """
+### 5. Actionable Checklist
+
+Mexico:
+  ☐ Hire Mexican production service company (fixer) — Week 1
+  ☐ Submit film permit application to Mexico City Film Commission — Week 1–2
+  ☐ Apply for AFAC commercial drone permit (via local partner) — Week 1
+  ☐ Secure work permits for 50 extras via local casting agency — Week 2–3
+  ☐ Confirm insurance coverage ($1M+ liability, workers' comp) — Week 2
+
+### 6. Final Recommendation
+
+PROCEED WITH MEXICO CITY — strong infrastructure, experienced crews, competitive costs. Partner with a local production service (Story, We Produce, or 80 Days Films) to handle permits, hiring, and drone compliance. Budget **$9,500–$20,500/day** all-in. Start permit process **minimum 4 weeks before shoot**.
+"""
+    
+    return report
 
 def extract_production_info(message):
     """Extract production info using regex (no API needed)."""
@@ -461,7 +298,7 @@ def create_app():
             import traceback
             print(traceback.format_exc())
             result = generate_demo_report(msg)
-            return jsonify({"success": True, "response": f"Error using live API, showing demo:\n\n{result[:1000]}"})
+            return jsonify({"success": True, "response": result + "\n---\n*Note: Using demo mode due to API error*"})
     
     @app.route("/api/export-docx", methods=["POST"])
     def export_docx():
@@ -482,7 +319,7 @@ def create_app():
             return jsonify({"success": False, "error": str(e)}), 500
     
     @app.route("/api/health", methods=["GET"])
-    def health(): return jsonify({"status": "ok", "timestamp": datetime.now().isoformat(), "mode": "demo"})
+    def health(): return jsonify({"status": "ok", "timestamp": datetime.now().isoformat()})
     return app
 
 
@@ -495,55 +332,38 @@ def generate_docx(text):
     title = doc.add_heading("Production Passport Report", level=0)
     title.alignment = WD_ALIGN_PARAGRAPH.CENTER
     
-    # Convert HTML/markdown to docx lines
-    lines = text.replace('<br>', '\n').split('\n')
-    
+    lines = text.split('\n')
     for line in lines:
         line = line.strip()
         if not line:
             continue
+        # Headers
         if line.startswith('##'):
             doc.add_heading(line.replace('#', '').strip(), level=2)
         elif line.startswith('###'):
             doc.add_heading(line.replace('#', '').strip(), level=3)
+        # Checklists
+        elif '☐' in line:
+            clean = line.replace('☐', '').strip()
+            if clean:
+                p = doc.add_paragraph(clean)
+                p.style = 'List Bullet'
+        # Bullet points
         elif '•' in line:
-            # Extract bullet items
+            clean = line.replace('•', '').strip()
+            if clean:
+                p = doc.add_paragraph(clean)
+                p.style = 'List Bullet'
+        # Regular text
+        elif line and not line.startswith('['):
+            clean = line.replace('**', '').strip()
+            if clean and not any(x in clean for x in ['http', '[', ']']):
+                doc.add_paragraph(clean)
+        # URLs or links
+        elif line.startswith('•'):
             clean = line.replace('•', '').strip()
             if clean:
                 doc.add_paragraph(clean, style='List Bullet')
-        elif line.startswith('[') and ']' in line:
-            # Markdown link
-            import re
-            match = re.match(r'\[([^\]]+)\]\(([^)]+)\)', line)
-            if match:
-                p = doc.add_paragraph(match.group(1), style='List Bullet')
-                p.add_run(" (").add_run(match.group(2), style='Intense Italic').add_run(")")
-        elif line and ('</' in line or '<' in line):
-            # HTML tag - skip or handle
-            if '<h' in line:
-                clean = line.split('>', 1)[-1].split('<', 1)[0] if '>' in line else line
-                if clean and not any(x in clean for x in ['<', '>', 'class=', 'style=']):
-                    doc.add_paragraph(clean)
-            # Skip other HTML
-            continue
-        elif line.startswith('|') and not line.startswith('|-'):
-            # Table row
-            cells = [c.strip() for c in line.split('|')[1:-1]]
-            if len(cells) > 0 and not all(set(c) <= set('-:') for c in cells):
-                if len(doc.tables) == 0 or doc.tables[-1].rows[-1].cells[-1].text:
-                    table = doc.add_table(rows=1, cols=len(cells))
-                    table.style = 'Table Grid'
-                    for i, cell in enumerate(cells):
-                        table.rows[0].cells[i].text = cell
-                else:
-                    row = table.add_row()
-                    for i, cell in enumerate(cells):
-                        row.cells[i].text = cell
-        elif line:
-            # Regular text
-            clean = line.replace('**', '').replace('▶', '').strip()
-            if clean and not clean.startswith('<'):
-                doc.add_paragraph(clean)
     
     with tempfile.NamedTemporaryFile(suffix='.docx', delete=False) as tmp:
         doc.save(tmp.name)
@@ -621,25 +441,22 @@ Research:
         prompt += f"\n{c}:\n" + "\n".join(items) + "\n"
 
     prompt += """
-Write a COMPLETE, DETAILED report (use full 8000 tokens). Structure:
+Write a COMPLETE, DETAILED text report. Structure:
 
-1. **Executive Summary** (3-4 sentences with specific numbers)
-2. **Permits & Costs** — for each country use this format:
-┌─────────────────────────────────────────────────────────────────┐
-│ COUNTRY NAME                                                    │
-├─────────────────────┬────────────────────────────────────────────┤
-│ Permit Cost         │ $X – $Y per day                            │
-│ Processing Time     │ N – M business days                        │
-│ Key Restrictions    │ • Bullet 1                                 │
-│                     │ • Bullet 2                                 │
-│ Risk Level          │ HIGH/MEDIUM/LOW                            │
-└─────────────────────┴────────────────────────────────────────────┘
-3. **Bring vs Hire**: Gear rental daily rates, crew day rates, extras cost. Calculate totals. List vendor names. Use bullet points with •
-4. **Drone Rules** (if applicable) — bullet points with •
-5. **Actionable Checklist** (5-7 items per country with timelines) — checkboxes with ☐
-6. **Final Recommendation** with specific budget range
+1. Executive Summary
+2. Permits & Costs Table using this format:
+Country Name [RISK_LEVEL]
+├── Permit Cost: $X
+├── Processing Time: N days
+└── Restrictions:
+    • Item 1
+    • Item 2
+3. Bring vs Hire: cost analysis with bullet points
+4. Drone Rules: bullet points if applicable
+5. Actionable Checklist with ☐ boxes
+6. Final Recommendation
 
-Be specific. No "data unavailable". Use estimates marked as (estimate). Include source URLs as markdown links. NO markdown tables — use the box format above. DO NOT truncate - write the full report."""
+Use ASCII box drawings for countries. Be specific. Include URLs. NO markdown tables."""
     
     result = gm(prompt)
     # Fallback to demo if API failed
