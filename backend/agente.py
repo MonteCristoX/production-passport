@@ -1,5 +1,6 @@
 import os, json, requests
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from datetime import datetime
 
 def get_key(name):
     return os.environ.get(name, "")
@@ -33,16 +34,24 @@ def pe(url, obj=""):
         return ""
 
 def gm(prompt, retries=2):
+    """Try Vertex AI first, then AI Studio, then demo mode"""
     k = get_key("GEMINI_API_KEY")
     if not k:
         return "Error: GEMINI_API_KEY not configured"
     
-    # Detect key type: AI Studio keys start with AIza, Vertex/Cloud keys are different
-    is_vertex = not k.startswith("AIza")
+    # Check if it's a Replit Vertex AI key (starts with AQ or similar)
+    is_vertex_key = k.startswith("AQ.") or not k.startswith("AIza")
     
-    if is_vertex:
-        # Vertex AI endpoint - needs project ID and location
-        # For now, fall back to AI Studio format but try different model names
+    if is_vertex_key:
+        # Try Vertex AI via SDK
+        try:
+            from gemini_vertex import init_vertex_ai, gm_vertex
+            if init_vertex_ai():
+                return gm_vertex(prompt)
+        except Exception as e:
+            print(f"Vertex AI init error: {e}")
+        
+        # Fallback to API endpoint
         models_to_try = [
             "gemini-1.5-flash",
             "gemini-1.5-flash-latest", 
@@ -51,6 +60,7 @@ def gm(prompt, retries=2):
             "gemini-2.0-flash-exp",
         ]
     else:
+        # AI Studio key
         models_to_try = [
             "gemini-1.5-flash",
             "gemini-1.5-flash-latest",
@@ -60,13 +70,13 @@ def gm(prompt, retries=2):
     for model in models_to_try:
         for attempt in range(retries):
             try:
-                r = requests.post(f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent",
+                base_url = "https://generativelanguage.googleapis.com/v1beta/models"
+                r = requests.post(f"{base_url}/{model}:generateContent",
                     json={"contents": [{"parts": [{"text": prompt}]}], "generationConfig": {"temperature": 0.7, "maxOutputTokens": 8192}},
                     params={"key": k}, timeout=60)
                 if r.status_code == 200:
                     return r.json()["candidates"][0]["content"]["parts"][0]["text"]
                 elif r.status_code == 404:
-                    # Model not found, try next model
                     break
                 elif r.status_code == 429:
                     import time
@@ -75,117 +85,13 @@ def gm(prompt, retries=2):
                     time.sleep(wait)
                     continue
                 else:
-                    print(f"Gemini HTTP error ({model}): {r.status_code} - {r.text[:200]}")
+                    print(f"Gemini HTTP error ({model}): {r.status_code}")
                     break
             except Exception as e:
                 print(f"Gemini error ({model}): {e}")
                 break
     
-    return "Error: No working Gemini model found. Check API key and model access."
-
-
-def process_query(message):
-    # Check if we should use demo mode (no API keys or rate limited)
-    use_demo = not get_key("PARALLEL_API_KEY") or not get_key("GEMINI_API_KEY")
-    
-    if use_demo:
-        return generate_demo_report(message)
-    
-    # Extract with regex fallback (no API call needed)
-    data = extract_production_info(message)
-    
-    # Research - PARALLELIZED
-    research = {}
-    with ThreadPoolExecutor(max_workers=4) as executor:
-        futures = {}
-        
-        for c in data["countries"]:
-            research[c] = []
-            # Permits - only 1 search
-            futures[executor.submit(ps, f"{c} film commission permit requirements costs 2025")] = (c, "permit")
-            # Drones if needed
-            if data["drones"]:
-                futures[executor.submit(ps, f"{c} drone laws filming foreigners")] = (c, "drone")
-            # Crew - only 1 search
-            futures[executor.submit(ps, f"{c} film production crew hire rental")] = (c, "crew")
-        
-        # Collect search results
-        search_results = {}
-        for future in as_completed(futures, timeout=30):
-            c, stype = futures[future]
-            try:
-                search_results.setdefault(c, {})[stype] = future.result()
-            except Exception as e:
-                print(f"Search error for {c} {stype}: {e}")
-                search_results.setdefault(c, {})[stype] = {"results": []}
-        
-        # Now extract from top URLs in parallel
-        extract_futures = {}
-        for c in data["countries"]:
-            sr = search_results.get(c, {})
-            
-            # Permit extraction
-            for r in sr.get("permit", {}).get("results", [])[:1]:
-                if r.get("url"):
-                    extract_futures[executor.submit(pe, r["url"], "film permits")] = (c, r["title"], r["url"])
-            
-            # Drone extraction
-            if data["drones"]:
-                for r in sr.get("drone", {}).get("results", [])[:1]:
-                    if r.get("url"):
-                        extract_futures[executor.submit(pe, r["url"], "drone laws")] = (c, "DRONES " + r["title"], r["url"])
-            
-            # Crew extraction
-            for r in sr.get("crew", {}).get("results", [])[:1]:
-                if r.get("url"):
-                    extract_futures[executor.submit(pe, r["url"], "crew hire")] = (c, "CREW " + r["title"], r["url"])
-        
-        # Collect extracts
-        for future in as_completed(extract_futures, timeout=30):
-            c, title, url = extract_futures[future]
-            try:
-                extract = future.result()
-                if extract:
-                    research.setdefault(c, []).append(f"[{title}]({url}): {extract[:800]}")
-            except Exception as e:
-                print(f"Extract error for {url}: {e}")
-
-    # Report
-    prompt = f"""Film production report for: "{message}"
-Details: {data['countries']}, {data['location_type']}, {data['extras']} extras, drones={'yes' if data['drones'] else 'no'}, ${data['budget_usd']}
-
-Research:
-"""
-    for c, items in research.items():
-        prompt += f"\n{c}:\n" + "\n".join(items) + "\n"
-
-    prompt += """
-Write a COMPLETE, DETAILED report (use full 8000 tokens). Structure:
-
-1. **Executive Summary** (3-4 sentences with specific numbers)
-2. **Permits & Costs** — for each country use this format:
-┌─────────────────────────────────────────────────────────────────┐
-│ COUNTRY NAME                                                    │
-├─────────────────────┬────────────────────────────────────────────┤
-│ Permit Cost         │ $X – $Y per day                            │
-│ Processing Time     │ N – M business days                        │
-│ Key Restrictions    │ • Bullet 1                                 │
-│                     │ • Bullet 2                                 │
-│ Risk Level          │ HIGH/MEDIUM/LOW                            │
-└─────────────────────┴────────────────────────────────────────────┘
-3. **Bring vs Hire**: Gear rental daily rates, crew day rates, extras cost. Calculate totals. List vendor names. Use bullet points with •
-4. **Drone Rules** (if applicable) — bullet points with •
-5. **Actionable Checklist** (5-7 items per country with timelines) — checkboxes with ☐
-6. **Final Recommendation** with specific budget range
-
-Be specific. No "data unavailable". Use estimates marked as (estimate). Include source URLs as markdown links. NO markdown tables — use the box format above. DO NOT truncate - write the full report."""
-    
-    result = gm(prompt)
-    # Fallback to demo if API failed
-    if result.startswith("Error:") or result.startswith("API Error:"):
-        print(f"API failed, using demo: {result}")
-        return generate_demo_report(message)
-    return result
+    return "Error: No working Gemini model found."
 
 
 def generate_demo_report(message):
@@ -196,8 +102,10 @@ def generate_demo_report(message):
     extras_str = f"{data['extras']} extras" if data['extras'] > 0 else "no extras"
     drones_str = "with drones" if data['drones'] else "no drones"
     budget_str = f"${data['budget_usd']:,}" if data['budget_usd'] > 0 else "not specified"
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     
-    report = f"""## Film Production Report: {countries_str}
+    report = f"""## Film Production Report
+Generated: {timestamp}
 
 ### 1. Executive Summary
 Production planned for {countries_str} ({data['location_type']} location) with {extras_str} and {drones_str}. Budget: {budget_str}. Key challenges include managing {data['extras']} extras in an urban environment and obtaining commercial drone permits where applicable. Local hiring is recommended for crew and extras to reduce costs and ensure compliance.
@@ -207,7 +115,8 @@ Production planned for {countries_str} ({data['location_type']} location) with {
     
     for c in data["countries"]:
         if c == "Mexico":
-            report += """┌─────────────────────────────────────────────────────────────────┐
+            report += """
+┌─────────────────────────────────────────────────────────────────┐
 │ MEXICO                                                            │
 ├─────────────────────┬────────────────────────────────────────────┤
 │ Permit Cost         │ $500 – $5,000 per day                      │
@@ -219,7 +128,8 @@ Production planned for {countries_str} ({data['location_type']} location) with {
 └─────────────────────┴────────────────────────────────────────────┘
 """
         elif c == "Colombia":
-            report += """┌─────────────────────────────────────────────────────────────────┐
+            report += """
+┌─────────────────────────────────────────────────────────────────┐
 │ COLOMBIA                                                          │
 ├─────────────────────┬────────────────────────────────────────────┤
 │ Permit Cost         │ $300 – $3,000 per day                      │
@@ -231,7 +141,8 @@ Production planned for {countries_str} ({data['location_type']} location) with {
 └─────────────────────┴────────────────────────────────────────────┘
 """
         else:
-            report += f"""┌─────────────────────────────────────────────────────────────────┐
+            report += f"""
+┌─────────────────────────────────────────────────────────────────┐
 │ {c.upper():<63} │
 ├─────────────────────┬────────────────────────────────────────────┤
 │ Permit Cost         │ $200 – $4,000 per day                      │
@@ -259,7 +170,7 @@ Production planned for {countries_str} ({data['location_type']} location) with {
   • Sound Mixer:                               $350 – $600/day
   • Extras (50 people):                        $75 – $150/person/day = $3,750 – $7,500/day
 
-**Estimated Daily Total (local hire):     $6,000 – $12,000/day**  
+**Estimated Daily Total (local hire):     $6,000 – $12,000/day  
 **Estimated Daily Total (bring crew):     $10,000 – $20,000/day** (incl. travel, per diem, insurance)
 
 ▶ RECOMMENDATION: HIRE LOCALLY — saves 40–50% and avoids visa/logistics complexity.
@@ -295,7 +206,7 @@ Production planned for {countries_str} ({data['location_type']} location) with {
 **Proceed with Mexico City** — strong infrastructure, experienced crews, competitive costs. Partner with a local production service (Story, We Produce, or 80 Days Films) to handle permits, hiring, and drone compliance. Budget **$9,500–$20,500/day** all-in. Start permit process **minimum 4 weeks before shoot**.
 
 ---
-*Demo mode — connect Parallel API + Gemini API keys for live research.*"""
+*This is a demo report. For live research, configure GEMINI_API_KEY with an AI Studio key (starts with AIza...) or ensure Vertex AI access.*"""
     
     return report
 
@@ -389,7 +300,7 @@ def extract_production_info(message):
 
 
 def create_app():
-    from flask import Flask, request, jsonify, send_from_directory, send_file
+    from flask import Flask, request, jsonify, send_file
     from flask_cors import CORS
     import io
     
@@ -397,15 +308,21 @@ def create_app():
     CORS(app)
     
     @app.route("/")
-    def index(): return send_from_directory(app.static_folder, 'index.html')
+    def index(): return send_file(app.static_folder + '/index.html')
     
     @app.route("/api/chat", methods=["POST"])
     def chat():
         data = request.json
         msg = data.get("message", "")
         if not msg: return jsonify({"success": False, "error": "Empty"}), 400
-        try: return jsonify({"success": True, "response": process_query(msg)})
-        except Exception as e: return jsonify({"success": False, "error": str(e)}), 500
+        try: 
+            result = process_query(msg)
+            return jsonify({"success": True, "response": result})
+        except Exception as e: 
+            import traceback
+            print(traceback.format_exc())
+            result = generate_demo_report(msg)
+            return jsonify({"success": True, "response": result + "\\n\\n--- Error using live API, showing demo ---"})
     
     @app.route("/api/export-docx", methods=["POST"])
     def export_docx():
@@ -420,10 +337,13 @@ def create_app():
                 as_attachment=True,
                 download_name="production-passport-report.docx"
             )
-        except Exception as e: return jsonify({"success": False, "error": str(e)}), 500
+        except Exception as e: 
+            import traceback
+            print(traceback.format_exc())
+            return jsonify({"success": False, "error": str(e)}), 500
     
     @app.route("/api/health", methods=["GET"])
-    def health(): return jsonify({"status": "ok"})
+    def health(): return jsonify({"status": "ok", "timestamp": datetime.now().isoformat()})
     return app
 
 
@@ -478,6 +398,101 @@ def generate_docx(text):
     return data
 
 
+def process_query(message):
+    # Check if we should use demo mode (no API keys)
+    use_demo = not get_key("PARALLEL_API_KEY") or not get_key("GEMINI_API_KEY")
+    
+    if use_demo:
+        return generate_demo_report(message)
+    
+    # Extract with regex fallback (no API call needed)
+    data = extract_production_info(message)
+    
+    # Research - PARALLELIZED
+    research = {}
+    with ThreadPoolExecutor(max_workers=4) as executor:
+        futures = {}
+        
+        for c in data["countries"]:
+            research[c] = []
+            futures[executor.submit(ps, f"{c} film commission permit requirements costs 2025")] = (c, "permit")
+            if data["drones"]:
+                futures[executor.submit(ps, f"{c} drone laws filming foreigners")] = (c, "drone")
+            futures[executor.submit(ps, f"{c} film production crew hire rental")] = (c, "crew")
+        
+        search_results = {}
+        for future in as_completed(futures, timeout=30):
+            c, stype = futures[future]
+            try:
+                search_results.setdefault(c, {})[stype] = future.result()
+            except Exception as e:
+                print(f"Search error for {c} {stype}: {e}")
+                search_results.setdefault(c, {})[stype] = {"results": []}
+        
+        extract_futures = {}
+        for c in data["countries"]:
+            sr = search_results.get(c, {})
+            
+            for r in sr.get("permit", {}).get("results", [])[:1]:
+                if r.get("url"):
+                    extract_futures[executor.submit(pe, r["url"], "film permits")] = (c, r["title"], r["url"])
+            
+            if data["drones"]:
+                for r in sr.get("drone", {}).get("results", [])[:1]:
+                    if r.get("url"):
+                        extract_futures[executor.submit(pe, r["url"], "drone laws")] = (c, "DRONES " + r["title"], r["url"])
+            
+            for r in sr.get("crew", {}).get("results", [])[:1]:
+                if r.get("url"):
+                    extract_futures[executor.submit(pe, r["url"], "crew hire")] = (c, "CREW " + r["title"], r["url"])
+        
+        for future in as_completed(extract_futures, timeout=30):
+            c, title, url = extract_futures[future]
+            try:
+                extract = future.result()
+                if extract:
+                    research.setdefault(c, []).append(f"[{title}]({url}): {extract[:800]}")
+            except Exception as e:
+                print(f"Extract error for {url}: {e}")
+
+    # Report
+    prompt = f"""Film production report for: "{message}"
+Details: {data['countries']}, {data['location_type']}, {data['extras']} extras, drones={'yes' if data['drones'] else 'no'}, ${data['budget_usd']}
+
+Research:
+"""
+    for c, items in research.items():
+        prompt += f"\n{c}:\n" + "\n".join(items) + "\n"
+
+    prompt += """
+Write a COMPLETE, DETAILED report (use full 8000 tokens). Structure:
+
+1. **Executive Summary** (3-4 sentences with specific numbers)
+2. **Permits & Costs** — for each country use this format:
+┌─────────────────────────────────────────────────────────────────┐
+│ COUNTRY NAME                                                    │
+├─────────────────────┬────────────────────────────────────────────┤
+│ Permit Cost         │ $X – $Y per day                            │
+│ Processing Time     │ N – M business days                        │
+│ Key Restrictions    │ • Bullet 1                                 │
+│                     │ • Bullet 2                                 │
+│ Risk Level          │ HIGH/MEDIUM/LOW                            │
+└─────────────────────┴────────────────────────────────────────────┘
+3. **Bring vs Hire**: Gear rental daily rates, crew day rates, extras cost. Calculate totals. List vendor names. Use bullet points with •
+4. **Drone Rules** (if applicable) — bullet points with •
+5. **Actionable Checklist** (5-7 items per country with timelines) — checkboxes with ☐
+6. **Final Recommendation** with specific budget range
+
+Be specific. No "data unavailable". Use estimates marked as (estimate). Include source URLs as markdown links. NO markdown tables — use the box format above. DO NOT truncate - write the full report."""
+    
+    result = gm(prompt)
+    # Fallback to demo if API failed
+    if result.startswith("Error:") or "No working Gemini" in result:
+        print(f"API failed, using demo: {result}")
+        return generate_demo_report(message)
+    return result
+
+
 if __name__ == "__main__":
     app = create_app()
-    app.run(host="0.0.0.0", port=8080, debug=True)
+    app.run(host="0.0.0.0", port=8080, debug=False)
