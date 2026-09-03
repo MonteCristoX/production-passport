@@ -61,15 +61,15 @@ def gm(prompt, retries=2):
     return "Error: Gemini API failed"
 
 def reverse_geocode(lat, lng):
+    """Convert coordinates to city/neighborhood name using BigDataCloud."""
     try:
-        r = requests.get(f"https://nominatim.openstreetmap.org/reverse?lat={lat}&lon={lng}&format=json", timeout=5)
+        r = requests.get(f"https://api.bigdatacloud.net/data/reverse-geocode-client?latitude={lat}&longitude={lng}&localityLanguage=en", timeout=5)
         if r.status_code == 200:
             data = r.json()
-            addr = data.get("address", {})
-            city = addr.get("city") or addr.get("town") or addr.get("village") or ""
-            neighborhood = addr.get("suburb") or addr.get("neighbourhood") or ""
-            state = addr.get("state") or ""
-            country = addr.get("country") or ""
+            city = data.get("city") or ""
+            state = data.get("principalSubdivision") or ""
+            country = data.get("countryName") or ""
+            neighborhood = data.get("locality") or ""
             return {"city": city, "neighborhood": neighborhood, "state": state, "country": country,
                     "full": f"{neighborhood}, {city}, {state}, {country}" if neighborhood else f"{city}, {state}, {country}"}
     except:
@@ -158,6 +158,8 @@ def extract_production_info(message):
     msg_lower = message.lower()
     location = None
     location_type = "unknown"
+    found_state = None
+    countries = []
     
     coord_match = re.search(r'(-?\d+\.?\d*)\s*,\s*(-?\d+\.?\d*)', message)
     if coord_match:
@@ -167,6 +169,20 @@ def extract_production_info(message):
         geo = reverse_geocode(lat, lng)
         if geo["city"]:
             location.update({"city": geo["city"], "state": geo["state"], "neighborhood": geo["neighborhood"], "full_address": geo["full"]})
+            # Auto-detect country from geocoding if no country found
+            if not countries:
+                geo_country = geo.get("country", "")
+                if "united states" in geo_country.lower() or "usa" in geo_country.lower():
+                    countries.append("United States")
+                    if geo.get("state"):
+                        found_state = geo["state"]
+                elif geo_country:
+                    # Map country names
+                    country_map = {"mexico": "Mexico", "colombia": "Colombia", "spain": "Spain", "japan": "Japan"}
+                    for key, val in country_map.items():
+                        if key in geo_country.lower():
+                            countries.append(val)
+                            break
     
     maps_match = re.search(r'(https?://(?:www\.)?google\.com/maps/[^\s]+)', message)
     if maps_match:
@@ -226,9 +242,6 @@ def extract_production_info(message):
         "hawaii": "Hawaii", "honolulu": "Hawaii",
         "alaska": "Alaska",
     }
-    
-    found_state = None
-    countries = []
     
     # Check general countries first
     for key, val in film_countries.items():
