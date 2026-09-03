@@ -306,17 +306,25 @@ def generate_demo_report(message):
         loc_info += f"\n   🗺️ Google Maps: https://www.google.com/maps?q={location['lat']},{location['lng']}"
     
     # For multiple locations, use Gemini to generate comparison
-    comparison_note = ""
+    state_sections = ""
     states_list = [s.strip() for s in found_state.split(", ") if s.strip()] if found_state else []
     if len(states_list) >= 2:
-        comparison_note = f"\n\n**Note:** This report compares {', '.join(states_list)}. Contact each state's film commission for specific requirements."
+        for state in states_list:
+            state_contacts = get_country_contacts(state)
+            state_vendors = get_country_vendors(state)
+            contact_lines = [l.strip() for l in state_contacts.split('\n') if l.strip()][:3]
+            vendor_lines = [l.strip() for l in state_vendors.split('\n') if l.strip()][:2]
+            state_sections += f"\n\n### {state}\n**Key Contacts:**\n"
+            for cl in contact_lines: state_sections += f"{cl}\n"
+            state_sections += f"\n**Vendors:**\n"
+            for vl in vendor_lines: state_sections += f"{vl}\n"
     
     return f"""## Film Production Report
 Generated: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
 
 ### 1. Executive Summary
 Production comparison for **{cs}**{loc_str} ({scene_type} locations) with **{extras}** extras, **{crew_size}** crew.
-Budget: **${budget:,}**.{comparison_note}{loc_info}
+Budget: **${budget:,}**.{state_sections}{loc_info}
 
 ### 2. Country Analysis
 **{cs}**
