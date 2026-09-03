@@ -85,40 +85,128 @@ def get_country_vendors(country):
     return "\n".join(vendors.get(country, ["• Contact local film office for vendor recommendations"]))
 
 def generate_live_report(message):
-    """Generate report using live APIs (Gemini + Parallel)."""
-    # Gather real data from Parallel
+    """Generate report using live APIs with real-time price research."""
+    # 1. Detect location from message
+    msg_lower = message.lower()
+    countries = []
+    location = None
+    found_state = None
+    
+    # Check coordinates
+    coord_match = re.search(r'(-?\d+\.?\d*)\s*,\s*(-?\d+\.?\d*)', message)
+    if coord_match:
+        lat, lng = float(coord_match.group(1)), float(coord_match.group(2))
+        location = {"lat": lat, "lng": lng}
+        geo = reverse_geocode(lat, lng)
+        if geo["city"]:
+            location.update(geo)
+            if "united states" in geo.get("country", "").lower():
+                countries.append("United States")
+                found_state = geo.get("state")
+            elif geo.get("country"):
+                countries.append(geo["country"])
+    
+    # Check country keywords
+    country_keywords = {"united states": "United States", "usa": "United States", "mexico": "Mexico", 
+                       "colombia": "Colombia", "spain": "Spain", "japan": "Japan", "uk": "United Kingdom",
+                       "france": "France", "germany": "Germany", "brazil": "Brazil", "canada": "Canada", "costa rica": "Costa Rica"}
+    for kw, country in country_keywords.items():
+        if kw in msg_lower and country not in countries:
+            countries.append(country)
+    
+    cs = ", ".join(countries) if countries else "the specified location"
+    st = found_state or ""
+    
+    # 2. Search for real prices based on location
+    search_queries = []
+    if st:
+        search_queries.extend([
+            f"{st} film permit cost fees 2025",
+            f"{st} film production crew day rates 2025",
+            f"{st} camera equipment rental prices",
+        ])
+    if countries:
+        search_queries.extend([
+            f"{cs} film permit requirements costs 2025",
+            f"{cs} film production insurance rates",
+            f"{cs} film commission contact office",
+        ])
+    
+    # Execute searches
     search_results = []
-    for query in [f"{message} film permits requirements 2025", f"{message} film commission contact"]:
+    for query in search_queries:
         results = ps(query)
         if results.get("results"):
             search_results.extend(results["results"][:3])
     
-    # Extract real links
+    # Extract real links and data
     real_links = []
+    price_data = []
     for r in search_results:
         title = r.get("title", "")
         url = r.get("url", "")
+        snippet = r.get("snippet", "") or r.get("description", "")
         if url and title:
             real_links.append(f"• [{title}]({url})")
+        if snippet and any(kw in snippet.lower() for kw in ["$", "cost", "fee", "rate", "price", "usd"]):
+            price_data.append(f"- {title}: {snippet[:150]}")
     
     links_text = "\n".join(real_links[:10]) if real_links else "No additional links found."
+    price_text = "\n".join(price_data[:5]) if price_data else "No specific price data found in search results."
     
-    # Use Gemini to generate report with real data
-    prompt = f"""Based on the following real web search results, write a comprehensive film production report for: "{message}"
+    # 3. Extract numbers from message
+    all_nums = [int(n.replace(',', '')) for n in re.findall(r'(\d{1,3}(?:,\d{3})*)', msg_lower)]
+    crew_size = extras = budget = 0
+    for num in all_nums:
+        num_pos = msg_lower.find(str(num))
+        context = msg_lower[max(0, num_pos-20):num_pos+20]
+        if 'crew' in context and crew_size == 0:
+            crew_size = num
+        elif 'extr' in context or 'actor' in context:
+            extras = num
+        elif any(w in context for w in ['budget', 'cost', 'dollar', 'usd']) and budget == 0:
+            budget = num
+    if crew_size == 0 and len(all_nums) >= 2:
+        crew_size = all_nums[0]
+        if len(all_nums) >= 3: budget = all_nums[2]
+    elif crew_size == 0 and len(all_nums) == 1:
+        crew_size = all_nums[0]
+    
+    # 4. Detect features
+    drones = any(w in msg_lower for w in ["drone", "drones", "uav", "quadcopter"])
+    scene_type = "aerial" if drones else "urban"
+    
+    # 5. Generate report with real data
+    prompt = f"""Write a comprehensive film production report based on real search data.
 
-SEARCH RESULTS FOUND:
+PRODUCTION DETAILS:
+- Location: {cs}{" ("+st+")" if st else ""}
+- Scene type: {scene_type}
+- Crew size: {crew_size}
+- Extras: {extras}
+- Budget: ${budget:,}
+- Drones: {"Yes" if drones else "No"}
+
+REAL PRICE DATA FROM WEB SEARCH:
+{price_text}
+
+REAL SOURCE LINKS:
 {links_text}
 
-Write a detailed report with:
-1. Executive Summary
-2. Country/State Analysis (use real data from search results)
-3. Bring vs Hire cost analysis
-4. Insurance requirements
-5. Actionable checklist
-6. References (use ONLY URLs from search results above)
+Write a detailed report with these sections:
+1. Executive Summary (use production details above)
+2. Country/State Analysis (include real permit costs and processing times from search data)
+3. Bring vs Hire: Cost Analysis (use real price data from search results)
+4. Insurance Requirements (mention real rates if found)
+5. Actionable Checklist
+6. References & Links (use ONLY URLs from search results above)
 
-Be specific and use real data. Include source URLs as markdown links where relevant."""
-    
+IMPORTANT: 
+- Use real data from search results where available
+- Include specific costs and fees found in search
+- Cite sources using markdown links
+- If search didn't find specific prices, use reasonable estimates and note them as such"""
+
     result = gm(prompt)
     if result.startswith("Error:"):
         return generate_demo_report(message)
