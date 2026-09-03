@@ -156,6 +156,7 @@
         let isLoading = false;
         let controller = null;
         let demoMode = false;
+        let sessionId = 'session-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
 
         function toggleMode() {
             demoMode = !demoMode;
@@ -453,7 +454,7 @@
                 const response = await fetch('/api/chat', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ message: text, demo_mode: demoMode }),
+                    body: JSON.stringify({ message: text, demo_mode: demoMode, session_id: sessionId }),
                     signal: controller.signal
                 });
                 clearTimeout(timeoutId);
@@ -463,6 +464,13 @@
 
                 if (data.success) {
                     addMessage(data.response);
+                    
+                    // If final report, add download button
+                    if (data.stage === 'complete') {
+                        setTimeout(() => {
+                            addMessage('📥 Your report is ready! Use the buttons above to view full report, download as DOCX, or copy to clipboard.', false);
+                        }, 500);
+                    }
                 } else {
                     addMessage('Error: ' + (data.error || 'Could not process request'));
                 }

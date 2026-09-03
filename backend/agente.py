@@ -7,6 +7,9 @@ from flask import Flask, request, jsonify, send_file
 from flask_cors import CORS
 import io
 
+# Session memory - stores conversation context per user
+sessions = {}
+
 def get_key(name):
     return os.environ.get(name, "")
 
@@ -130,12 +133,20 @@ def get_budget_estimate(crew_size, extras, shooting_days=1):
             "sag_contribution": sag_contribution, "permit": permit, "insurance": insurance, "parking_total": parking_total,
             "catering_total": catering_total, "equipment_total": equipment_total, "total": total, "contingency": int(total * 0.1), "grand_total": int(total * 1.1)}
 
-def extract_production_info(message):
+def extract_production_info(message, existing_data=None):
+    """Extract production info, merging with existing session data."""
     msg_lower = message.lower()
     location = None
     location_type = "unknown"
     found_state = None
     countries = []
+    
+    # Start with existing data if available
+    if existing_data:
+        countries = existing_data.get("countries", [])
+        found_state = existing_data.get("state")
+        location = existing_data.get("location")
+        location_type = existing_data.get("location_type", "unknown")
     
     coord_match = re.search(r'(-?\d+\.?\d*)\s*,\s*(-?\d+\.?\d*)', message)
     if coord_match:
@@ -146,15 +157,14 @@ def extract_production_info(message):
         if geo["city"]:
             location.update({"city": geo["city"], "state": geo["state"], "neighborhood": geo["neighborhood"], "full_address": geo["full"]})
             if "united states" in geo.get("country", "").lower():
-                countries.append("United States")
+                if "United States" not in countries:
+                    countries.append("United States")
                 if geo.get("state"):
                     found_state = geo["state"]
-            else:
-                # Add geocoded country directly from BigDataCloud (any country in the world)
-                geo_country = geo.get("country", "").strip()
-                if geo_country and geo_country not in countries:
+            elif geo.get("country"):
+                geo_country = geo["country"]
+                if geo_country not in countries:
                     countries.append(geo_country)
-                if geo.get("state"): found_state = geo["state"]
     
     maps_match = re.search(r'(https?://(?:www\.)?google\.com/maps/[^\s]+)', message)
     if maps_match:
@@ -180,7 +190,7 @@ def extract_production_info(message):
                   "dallas": "Texas", "illinois": "Illinois", "chicago": "Illinois", "florida": "Florida", "miami": "Florida",
                   "orlando": "Florida", "colorado": "Colorado", "denver": "Colorado", "washington": "Washington", "seattle": "Washington",
                   "oregon": "Oregon", "portland": "Oregon", "tennessee": "Tennessee", "nashville": "Tennessee", "arizona": "Arizona",
-                  "phoenix": "Arizona", "utah": "Utah", "salt lake city": "Utah", "nevada": "Nevada", "las vegas": "Nevada",
+                  "phoenix": "Arizona", "utah": "Utah", "salt lake city": "Utah", "nevada": "Nevadas", "las vegas": "Nevada",
                   "massachusetts": "Massachusetts", "boston": "Massachusetts", "pennsylvania": "Pennsylvania", "philadelphia": "Pennsylvania",
                   "north carolina": "North Carolina", "south carolina": "South Carolina", "michigan": "Michigan", "detroit": "Michigan",
                   "ohio": "Ohio", "cleveland": "Ohio", "columbus": "Ohio", "virginia": "Virginia", "maryland": "Maryland", "baltimore": "Maryland",
@@ -200,7 +210,7 @@ def extract_production_info(message):
                 break
     
     if not countries:
-        return {"error": True, "message": "Please specify a destination country or US state. Examples: California, New York, Mexico, Spain, Japan, etc."}
+        return {"error": True, "message": "Please specify a destination country or US state.", "partial": True}
     
     scene_type = "urban"
     if any(w in msg_lower for w in ["colonial", "historic", "old town"]): scene_type = "heritage"
@@ -217,10 +227,9 @@ def extract_production_info(message):
     m = re.search(r'(\d+)\s*(?:actors?|principals?|talent)', msg_lower)
     if m: principals = int(m.group(1))
     
-    crew_size = 10
+    crew_size = 0
     m = re.search(r'(\d+)\s*(?:crew|people|person|staff|team)', msg_lower)
     if m: crew_size = int(m.group(1))
-    else: crew_size = max(10, extras // 2)
     
     drones = any(w in msg_lower for w in ["drone", "drones", "uav", "quadcopter", "fpv"])
     pyrotechnics = any(w in msg_lower for w in ["pyro", "pyrotechnics", "fireworks", "explosion", "fire", "burn"])
@@ -240,10 +249,13 @@ def extract_production_info(message):
             budget_usd = int(amount)
             break
     
-    return {"countries": countries, "location": location, "location_type": location_type, "scene_type": scene_type,
-            "extras": extras, "principals": principals, "crew_size": crew_size, "drones": drones,
-            "pyrotechnics": pyrotechnics, "night_shoot": night_shoot, "water_related": water_related,
-            "budget_usd": budget_usd, "state": found_state, "error": False}
+    return {
+        "countries": countries, "location": location, "location_type": location_type,
+        "scene_type": scene_type, "extras": extras, "principals": principals,
+        "crew_size": crew_size, "drones": drones, "pyrotechnics": pyrotechnics,
+        "night_shoot": night_shoot, "water_related": water_related,
+        "budget_usd": budget_usd, "state": found_state, "error": False
+    }
 
 def get_usa_state_info(state):
     states = {"California": {"film_office": "California Film Commission", "incentives": "20-25% tax credit (Film & TV Tax Credit 4.0)",
@@ -284,10 +296,7 @@ def get_country_vendors(country):
                                  "• [ShareGrid](https://www.sharegrid.com/) — Equipment rental",
                                  "• [ProductionHUB](https://www.productionhub.com/) — Crew & vendors",
                                  "• [SAG-AFTRA](https://www.sagaftra.org/) — Union resources",
-                                 "• [FilmLA](https://www.filmla.com/) — LA permits"],
-               "California": ["• [FilmLA](https://www.filmla.com/) — LA City permits",
-                              "• [CA Film Commission](https://www.film.ca.gov/) — State incentives",
-                              "• [SAG-AFTRA](https://www.sagaftra.org/) — Union rates"]}
+                                 "• [FilmLA](https://www.filmla.com/) — LA permits"]}
     return "\n".join(vendors.get(country, ["• Contact local film office for vendor recommendations"]))
 
 def generate_demo_report(data):
@@ -332,7 +341,7 @@ Budget: ${data['budget_usd']:,}. Key challenges: permits, crew, compliance, insu
 ├── Show Stoppers: {si['showstoppers']}
 └── Hotels: {si['hotels']} | Hospitals: {si['hospitals']}
 """
-    budget = get_budget_estimate(data['crew_size'], data['extras'])
+    budget = get_budget_estimate(data['crew_size'] or 10, data['extras'] or 0)
     sag = get_sag_aftra_rates()
     report += f"""
 ### 3. Detailed Budget Estimate (1 shooting day)
@@ -351,33 +360,33 @@ Budget: ${data['budget_usd']:,}. Key challenges: permits, crew, compliance, insu
 └── Golden Time (>{sag['golden_time_threshold_hours']}h): {sag['golden_time_multiplier']}× hourly
 
 ### 5. Insurance Breakdown (1 day)
-├── General Liability: ${get_insurance_breakdown(data['crew_size'], 50000, 1)['general_liability']}
-├── Workers' Comp: ${get_insurance_breakdown(data['crew_size'], 50000, 1)['workers_comp']}
-├── Equipment: ${get_insurance_breakdown(data['crew_size'], 50000, 1)['equipment']}
-├── Cast: ${get_insurance_breakdown(data['crew_size'], 50000, 1)['cast_insurance']}
-└── TOTAL DAILY: ${get_insurance_breakdown(data['crew_size'], 50000, 1)['total']}
+├── General Liability: ${get_insurance_breakdown(data['crew_size'] or 10, 50000, 1)['general_liability']}
+├── Workers' Comp: ${get_insurance_breakdown(data['crew_size'] or 10, 50000, 1)['workers_comp']}
+├── Equipment: ${get_insurance_breakdown(data['crew_size'] or 10, 50000, 1)['equipment']}
+├── Cast: ${get_insurance_breakdown(data['crew_size'] or 10, 50000, 1)['cast_insurance']}
+└── TOTAL DAILY: ${get_insurance_breakdown(data['crew_size'] or 10, 50000, 1)['total']}
 
 ### 6. Parking & Logistics
-├── Vehicles: {get_parking_requirements(data['crew_size'], data['extras'])['total_vehicles']} total
-├── Parking: ${get_parking_requirements(data['crew_size'], data['extras'])['parking_cost_daily']}/day
-├── Trucks: ${get_parking_requirements(data['crew_size'], data['extras'])['truck_cost_daily']}/day
-└── TOTAL: ${sum([get_parking_requirements(data['crew_size'], data['extras'])['parking_cost_daily'], get_parking_requirements(data['crew_size'], data['extras'])['truck_cost_daily'], get_parking_requirements(data['crew_size'], data['extras'])['basecamp_cost_daily']])}
+├── Vehicles: {get_parking_requirements(data['crew_size'] or 10, data['extras'] or 0)['total_vehicles']} total
+├── Parking: ${get_parking_requirements(data['crew_size'] or 10, data['extras'] or 0)['parking_cost_daily']}/day
+├── Trucks: ${get_parking_requirements(data['crew_size'] or 10, data['extras'] or 0)['truck_cost_daily']}/day
+└── TOTAL: ${sum([get_parking_requirements(data['crew_size'] or 10, data['extras'] or 0)['parking_cost_daily'], get_parking_requirements(data['crew_size'] or 10, data['extras'] or 0)['truck_cost_daily'], get_parking_requirements(data['crew_size'] or 10, data['extras'] or 0)['basecamp_cost_daily']])}
 
 ### 7. Catering Requirements
-├── People: {get_catering_requirements(data['crew_size'], data['extras'])['total_people']}
-├── Meals: {get_catering_requirements(data['crew_size'], data['extras'])['meals_per_day']}/day
-├── TOTAL: ${get_catering_requirements(data['crew_size'], data['extras'])['total_daily_catering']}/day
-└── Meal Penalty: ${get_catering_requirements(data['crew_size'], data['extras'])['meal_penalty_first_30min']}/${get_catering_requirements(data['crew_size'], data['extras'])['meal_penalty_second_30min']}/${get_catering_requirements(data['crew_size'], data['extras'])['meal_penalty_subsequent']}
+├── People: {get_catering_requirements(data['crew_size'] or 10, data['extras'] or 0)['total_people']}
+├── Meals: {get_catering_requirements(data['crew_size'] or 10, data['extras'] or 0)['meals_per_day']}/day
+├── TOTAL: ${get_catering_requirements(data['crew_size'] or 10, data['extras'] or 0)['total_daily_catering']}/day
+└── Meal Penalty: ${get_catering_requirements(data['crew_size'] or 10, data['extras'] or 0)['meal_penalty_first_30min']}/${get_catering_requirements(data['crew_size'] or 10, data['extras'] or 0)['meal_penalty_second_30min']}/${get_catering_requirements(data['crew_size'] or 10, data['extras'] or 0)['meal_penalty_subsequent']}
 
 ### 8. Next Steps
 1. Contact local film office for permits
 2. Secure insurance quotes
-3. Verify property permissions (written authorization)
+3. Verify property permissions
 4. File permit application (3-5 business days)
 5. Reserve parking/basecamp
 6. Coordinate SAG-AFTRA casting
-7. Arrange catering (dietary restrictions)
-8. Verify nearest hospital with ER
+7. Arrange catering
+8. Verify nearest hospital
 
 ### 9. References & Links
 {get_country_vendors(data['countries'][0])}
@@ -410,55 +419,6 @@ def generate_docx(text):
         os.unlink(tmp.name)
     return data
 
-def process_query(message, demo_mode=False):
-    data = extract_production_info(message)
-    if data.get("error"): return generate_demo_report(data)
-    use_demo = demo_mode or not get_key("GEMINI_API_KEY")
-    if use_demo: return generate_demo_report(data)
-    
-    # Live research - gather real links from Parallel
-    search_results = []
-    with ThreadPoolExecutor(max_workers=4) as executor:
-        futures = {}
-        for c in data["countries"]:
-            futures[executor.submit(ps, f"{c} film production insurance providers 2025")] = f"{c}_insurance"
-            futures[executor.submit(ps, f"{c} film commission permit office website")] = f"{c}_film_office"
-            futures[executor.submit(ps, f"{c} film equipment rental companies")] = f"{c}_equipment"
-        for future in as_completed(futures, timeout=30):
-            try:
-                result = future.result()
-                if result.get("results"): search_results.extend(result["results"][:2])
-            except: pass
-    
-    real_links = [f"• [{r.get('title', '')}]({r.get('url', '')})" for r in search_results if r.get("url") and r.get("title")]
-    links_text = "\n".join(real_links[:15]) if real_links else "No specific links found."
-    
-    cs = ", ".join(data["countries"])
-    st = data.get("state", "")
-    prompt = f"""Film production analysis for {cs}{' ('+st+' state)' if st else ''}.
-PRODUCTION: {data['scene_type']} location, {data['extras']} extras, {data['principals']} principals, {data['crew_size']} crew, ${data['budget_usd']:,} budget
-DRONES: {data['drones']}, PYRO: {data['pyrotechnics']}, NIGHT: {data['night_shoot']}
-
-SEARCH RESULTS:
-{links_text}
-
-WRITE A DETAILED REPORT:
-1. Executive Summary
-2. Country/State Analysis Table
-3. Detailed Budget Estimate
-4. SAG-AFTRA Requirements (2025-2026 rates)
-5. Insurance Breakdown
-6. Parking & Logistics
-7. Catering Requirements
-8. Next Steps & Contacts
-9. References & Links (ONLY use URLs from search results above)
-
-IMPORTANT: Only include URLs from search results. Do not make up website addresses."""
-    
-    result = gm(prompt)
-    if result.startswith("Error:"): return generate_demo_report(data)
-    return result
-
 def create_app():
     app = Flask(__name__, static_folder=os.path.join(os.path.dirname(__file__), '..', 'frontend'), static_url_path='')
     CORS(app)
@@ -469,16 +429,93 @@ def create_app():
     @app.route("/api/chat", methods=["POST"])
     def chat():
         data = request.json
-        msg = data.get("message", "")
+        msg = data.get("message", "").strip()
         demo = data.get("demo_mode", False)
-        if not msg: return jsonify({"success": False, "error": "Empty"}), 400
-        try:
-            result = process_query(msg, demo_mode=demo)
-            return jsonify({"success": True, "response": result})
-        except Exception as e:
-            print(f"Chat error: {e}")
-            data = extract_production_info(msg)
-            return jsonify({"success": True, "response": generate_demo_report(data)})
+        session_id = data.get("session_id", "default")
+        
+        if not msg: return jsonify({"success": False, "error": "Empty message"}), 400
+        
+        # Initialize session if new
+        if session_id not in sessions:
+            sessions[session_id] = {"history": [], "data": {}, "stage": "gathering"}
+        
+        session = sessions[session_id]
+        
+        # Check if user wants final report
+        final_triggers = ["no", "listo", "así está", "generar", "proceed", "go ahead", "ready", "that's all", "done", "perfect"]
+        wants_final = any(t in msg.lower() for t in final_triggers) and len(session["history"]) > 0
+        
+        if wants_final:
+            # Generate final report with all collected data
+            merged_data = session["data"]
+            # Fill defaults for missing fields
+            merged_data.setdefault("crew_size", 10)
+            merged_data.setdefault("extras", 0)
+            merged_data.setdefault("principals", 0)
+            merged_data.setdefault("budget_usd", 0)
+            merged_data.setdefault("drones", False)
+            merged_data.setdefault("scene_type", "urban")
+            
+            use_demo = demo or not get_key("GEMINI_API_KEY")
+            if use_demo:
+                report = generate_demo_report(merged_data)
+            else:
+                report = generate_live_report(merged_data)
+            
+            session["stage"] = "complete"
+            session["history"].append({"role": "user", "content": msg})
+            session["history"].append({"role": "assistant", "content": report})
+            
+            return jsonify({"success": True, "response": report, "stage": "complete"})
+        
+        # Extract new info from message
+        new_data = extract_production_info(msg, session["data"])
+        
+        # Merge with existing session data
+        for key, val in new_data.items():
+            if val and val not in [0, False, "", []]:
+                session["data"][key] = val
+        
+        # Determine what's still missing
+        missing = []
+        if not session["data"].get("countries"):
+            missing.append("destination country")
+        if not session["data"].get("state") and "United States" in session["data"].get("countries", []):
+            missing.append("US state")
+        if not session["data"].get("crew_size"):
+            missing.append("crew size")
+        if session["data"].get("extras", 0) == 0:
+            missing.append("number of extras")
+        if session["data"].get("budget_usd", 0) == 0:
+            missing.append("budget range")
+        
+        # Generate conversational response
+        if missing:
+            question = generate_question(missing, session["data"])
+            session["history"].append({"role": "user", "content": msg})
+            session["history"].append({"role": "assistant", "content": question})
+            return jsonify({"success": True, "response": question, "stage": "gathering"})
+        else:
+            # All info collected, generate preliminary summary
+            merged_data = session["data"]
+            merged_data.setdefault("crew_size", 10)
+            merged_data.setdefault("extras", 0)
+            merged_data.setdefault("principals", 0)
+            merged_data.setdefault("budget_usd", 0)
+            merged_data.setdefault("drones", False)
+            merged_data.setdefault("scene_type", "urban")
+            
+            use_demo = demo or not get_key("GEMINI_API_KEY")
+            if use_demo:
+                report = generate_demo_report(merged_data)
+            else:
+                report = generate_live_report(merged_data)
+            
+            session["stage"] = "complete"
+            session["history"].append({"role": "user", "content": msg})
+            session["history"].append({"role": "assistant", "content": report})
+            
+            return jsonify({"success": True, "response": report, "stage": "complete"})
     
     @app.route("/api/export-docx", methods=["POST"])
     def export_docx():
@@ -496,6 +533,85 @@ def create_app():
     def health():
         return jsonify({"status": "ok", "mode": "live" if get_key("GEMINI_API_KEY") else "demo"})
     return app
+
+def generate_question(missing, data):
+    """Generate a conversational question based on what's missing."""
+    cs = ", ".join(data.get("countries", []))
+    parts = []
+    
+    if "destination country" in missing:
+        parts.append("What country or US state do you want to film in?")
+    if "US state" in missing:
+        parts.append(f"You mentioned {cs} — which state?")
+    if "crew size" in missing:
+        parts.append("How many crew members will you have?")
+    if "number of extras" in missing:
+        parts.append("How many extras/background actors?")
+    if "budget range" in missing:
+        parts.append("What's your approximate budget (in USD)?")
+    
+    # Add context about what we already know
+    known = []
+    if data.get("countries"): known.append(f"📍 {', '.join(data['countries'])}")
+    if data.get("crew_size"): known.append(f"👥 {data['crew_size']} crew")
+    if data.get("extras"): known.append(f"🎭 {data['extras']} extras")
+    if data.get("budget_usd"): known.append(f"💰 ${data['budget_usd']:,}")
+    if data.get("drones"): known.append("🚁 Drones")
+    
+    response = ""
+    if known:
+        response += "So far I have:\n" + "\n".join(f"  • {k}" for k in known) + "\n\n"
+    
+    response += parts[0] if parts else "Ready to generate your report! Just say 'no' or 'listo' if you're done."
+    
+    if len(parts) > 1:
+        response += f"\n\nAlso: {parts[1]}"
+    
+    return response
+
+def generate_live_report(data):
+    """Generate report using Gemini + Parallel APIs."""
+    search_results = []
+    with ThreadPoolExecutor(max_workers=4) as executor:
+        futures = {}
+        for c in data["countries"]:
+            futures[executor.submit(ps, f"{c} film production insurance providers 2025")] = f"{c}_insurance"
+            futures[executor.submit(ps, f"{c} film commission permit office website")] = f"{c}_film_office"
+        for future in as_completed(futures, timeout=30):
+            try:
+                result = future.result()
+                if result.get("results"): search_results.extend(result["results"][:2])
+            except: pass
+    
+    real_links = [f"• [{r.get('title', '')}]({r.get('url', '')})" for r in search_results if r.get("url") and r.get("title")]
+    links_text = "\n".join(real_links[:15]) if real_links else "No specific links found."
+    
+    cs = ", ".join(data["countries"])
+    st = data.get("state", "")
+    
+    prompt = f"""Film production analysis for {cs}{' ('+st+' state)' if st else ''}.
+PRODUCTION: {data['scene_type']} location, {data['extras']} extras, {data['principals']} principals, {data['crew_size']} crew, ${data['budget_usd']:,} budget
+DRONES: {data['drones']}, PYRO: {data['pyrotechnics']}, NIGHT: {data['night_shoot']}
+
+SEARCH RESULTS:
+{links_text}
+
+WRITE A DETAILED REPORT:
+1. Executive Summary
+2. Country/State Analysis Table
+3. Detailed Budget Estimate
+4. SAG-AFTRA Requirements (2025-2026 rates)
+5. Insurance Breakdown
+6. Parking & Logistics
+7. Catering Requirements
+8. Next Steps & Contacts
+9. References & Links (ONLY use URLs from search results)
+
+IMPORTANT: Only include URLs from search results. Do not make up website addresses."""
+    
+    result = gm(prompt)
+    if result.startswith("Error:"): return generate_demo_report(data)
+    return result
 
 if __name__ == "__main__":
     app = create_app()
