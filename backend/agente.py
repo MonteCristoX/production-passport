@@ -46,7 +46,53 @@ def reverse_geocode(lat, lng):
     except: pass
     return {"city": "", "neighborhood": "", "state": "", "country": "", "full": f"{lat}, {lng}"}
 
-def generate_report(message):
+def generate_live_report(message):
+    """Generate report using live APIs (Gemini + Parallel)."""
+    # Gather real data from Parallel
+    search_results = []
+    for query in [f"{message} film permits requirements 2025", f"{message} film commission contact"]:
+        results = ps(query)
+        if results.get("results"):
+            search_results.extend(results["results"][:3])
+    
+    # Extract real links
+    real_links = []
+    for r in search_results:
+        title = r.get("title", "")
+        url = r.get("url", "")
+        if url and title:
+            real_links.append(f"• [{title}]({url})")
+    
+    links_text = "\n".join(real_links[:10]) if real_links else "No additional links found."
+    
+    # Use Gemini to generate report with real data
+    prompt = f"""Based on the following real web search results, write a comprehensive film production report for: "{message}"
+
+SEARCH RESULTS FOUND:
+{links_text}
+
+Write a detailed report with:
+1. Executive Summary
+2. Country/State Analysis (use real data from search results)
+3. Bring vs Hire cost analysis
+4. Insurance requirements
+5. Actionable checklist
+6. References (use ONLY URLs from search results above)
+
+Be specific and use real data. Include source URLs as markdown links where relevant."""
+    
+    result = gm(prompt)
+    if result.startswith("Error:"):
+        return generate_demo_report(message)
+    
+    # Add footer
+    result += "
+
+---
+*Report generated in **LIVE MODE** with real-time API research.*"
+    return result
+
+def generate_demo_report(message):
     """Generate a complete production report from a single user message."""
     msg_lower = message.lower()
     
@@ -242,7 +288,15 @@ def create_app():
         if not msg: return jsonify({"success": False, "error": "Empty message"}), 400
         
         try:
-            report = generate_report(msg)
+            # Determine if we should use live APIs
+            has_apis = bool(get_key("GEMINI_API_KEY")) and bool(get_key("PARALLEL_API_KEY"))
+            use_live = not demo and has_apis
+            
+            if use_live:
+                report = generate_live_report(msg)
+            else:
+                report = generate_demo_report(msg)
+            
             return jsonify({"success": True, "response": report})
         except Exception as e:
             return jsonify({"success": False, "error": str(e)}), 500
