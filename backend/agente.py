@@ -698,67 +698,82 @@ Recommended Providers:
 8. Verify nearest hospital with ER + foreign language support
 """
     
-    # Referencias útiles
-    report += """
-### 9. Useful Links & References
-  • SAG-AFTRA Rates 2025-2026: https://www.sagaftra.org/contracts-industry-resources/background-performers/rates
-  • FilmLA (LA City Permits): https://www.filmla.com/
-  • Beverly Hills Film Office: https://www.beverlyhills.org/departments/filming/
-  • California Film Commission: https://www.film.ca.gov/
-  • Film Emissary (Insurance): https://www.filmemissary.com/
-  • Wrapbook (Payroll + Insurance): https://www.wrapbook.com/
-  • AIG Entertainment: https://www.aig.com/business/entertainment
-  • Hiscox Film Insurance: https://www.hiscox.com/small-business/film-entertainment
-  • Allianz Global Entertainment: https://www.allianz.com/en/offerings/entertainment.html
-  • 80 Days Films (Mexico): https://80daysfilms.com/
-  • Story Productions (Mexico): https://story.mx/
-  • We Produce (Mexico): https://weproduce.mx/
-  • Mexico Film Commission: https://www.filmcommission.gob.mx/
-  • Colombia Film Commission: https://www.procolombia.co/en/industries/creative-industries/film
-  • Spain Film Commission: https://www.spainfilmcommission.com/
-  • Japan Film Commission: https://www.japanfc.jp/eng/
-  • British Film Commission: https://britishfilmcommission.org.uk/
-  • Cineuropa (European Funding): https://cineuropa.org/
-  • Production Weekly: https://www.productionweekly.com/
-  • Studio System (Industry Data): https://www.studiosystem.com/
-  • Entertainment Partners: https://www.ep.com/
-  • Film Independent (Grants): https://www.filmindependent.org/
-  • Movie Permits (State-by-State): https://www.moviepermits.com/
-  • ProductionHUB (Crew & Vendors): https://www.productionhub.com/
-  • Mandy (Crew Finder): https://www.mandy.com/
-  • StaffMeUp (Crew Jobs): https://www.staffmeup.com/
-  • ProductionBeast (Vendor Directory): https://www.productionbeast.com/
-  • FilmEquipmentPost.com: https://www.filmequipmentpost.com/
-  • ShareGrid (Equipment Rental): https://www.sharegrid.com/
-  • KitSplit (Gear Rental): https://www.kitsplit.com/
-  • Peerspace (Location Rentals): https://www.peerspace.com/
-  • Giggster (Film Locations): https://www.giggster.com/
-  • Set Scouter (Locations): https://www.setscouter.com/
-  • FilmTrack (Rights Management): https://www.filmtrack.com/
-  • Movie Magic Scheduling: https://www.entertainmentpartners.com/software/magic-scheduling/
-  • Movie Magic Budgeting: https://www.entertainmentpartners.com/software/magic-budgeting/
-  • Final Draft (Screenwriting): https://www.finaldraft.com/
-  • StudioBinder (Production Mgmt): https://www.studiobinder.com/
-  • Yamdu (Production Software): https://www.yamdu.com/
-  • Celtx (Pre-Production): https://www.celtx.com/
-  • ShotPro (Storyboarding): https://www.shotpro.com/
-  • Cadrage (Shot Listing): https://cadrage.com/
-  • SetLife (Production Apps): https://getsetlife.com/
-  • Filmustage (Script Breakdown): https://www.filmustage.com/
-  • Yamdu: https://www.yamdu.com/
-  • CoreSounX (Music Licensing): https://www.coresounx.com/
-  • Artlist (Music/SFX): https://artlist.io/
-  • Epidemic Sound: https://www.epidemicsound.com/
-  • Musicbed: https://www.musicbed.com/
-  • Soundstripe: https://www.soundstripe.com/
-  • Pond5 (Stock Footage): https://www.pond5.com/
-  • Storyblocks (Stock Video): https://www.storyblocks.com/
-  • Shutterstock: https://www.shutterstock.com/
-  • Getty Images: https://www.gettyimages.com/
-  • Dissolve (Premium Stock): https://dissolve.com/
-  • Filmsupply (Cinematic Stock): https://www.filmsupply.com/
-"""
-
+    # Referencias específicas (solo las mencionadas)
+    links = []
+    text_lower = report.lower()
+    
+    # Seguros mencionados
+    if 'film emissary' in text_lower:
+        links.append('• Film Emissary (Insurance): https://www.filmemissary.com/')
+    if 'wrapbook' in text_lower:
+        links.append('• Wrapbook (Payroll + Insurance): https://www.wrapbook.com/')
+    if 'aig' in text_lower or 'aig entertainment' in text_lower:
+        links.append('• AIG Entertainment: https://www.aig.com/business/entertainment')
+    if 'hiscox' in text_lower:
+        links.append('• Hiscox Film Insurance: https://www.hiscox.com/small-business/film-entertainment')
+    if 'allianz' in text_lower:
+        links.append('• Allianz Global: https://www.allianz.com/en/offerings/entertainment.html')
+    if 'lloyd' in text_lower:
+        links.append("• Lloyd's of London: https://www.lloyds.com/")
+    if 'kelly insurance' in text_lower:
+        links.append('• Kelly Insurance Group: https://www.kellyinsurancegroup.com/')
+    if 'front row' in text_lower:
+        links.append('• Front Row Insurance: https://www.frontrowinsurance.com/')
+    
+    # Film offices mencionados
+    if 'filmla' in text_lower:
+        links.append('• FilmLA: https://www.filmla.com/')
+    if 'beverly hills' in text_lower:
+        links.append('• Beverly Hills Film Office: https://www.beverlyhills.org/departments/filming/')
+    if 'santa monica' in text_lower:
+        links.append('• Santa Monica Film Office: https://www.santamonica.com/business/film-office/')
+    if 'west hollywood' in text_lower:
+        links.append('• West Hollywood Film Office: https://www.weho.org/city-government/film-office')
+    if 'culver city' in text_lower:
+        links.append('• Culver City Film Office: https://www.culvercity.org/Government/Film-Office')
+    if 'pasadena' in text_lower:
+        links.append('• Pasadena Film Office: https://www.cityofpasadena.net/film-office/')
+    if 'california film commission' in text_lower or 'ca film' in text_lower:
+        links.append('• California Film Commission: https://www.film.ca.gov/')
+    if 'georgia film' in text_lower:
+        links.append('• Georgia Film Office: https://www.georgia.org/industries/film-entertainment')
+    if 'louisiana' in text_lower:
+        links.append('• Louisiana Entertainment: https://www.louisianaentertainment.gov/')
+    if 'new mexico' in text_lower:
+        links.append('• New Mexico Film Office: https://nmfilm.com/')
+    if 'new york' in text_lower or 'mome' in text_lower:
+        links.append('• NY Mayor\'s Office (MOME): https://www.nyc.gov/site/mome/index.page')
+    
+    # SAG-AFTRA
+    if 'sag-aftra' in text_lower or 'sag aftra' in text_lower:
+        links.append('• SAG-AFTRA Rates 2025-2026: https://www.sagaftra.org/contracts-industry-resources/background-performers/rates')
+        links.append('• SAG-AFTRA Production Center: https://www.sagaftra.org/production-center')
+    
+    # Proveedores Mexico
+    if '80 days' in text_lower:
+        links.append('• 80 Days Films (Mexico): https://80daysfilms.com/')
+    if 'story' in text_lower and 'mx' in text_lower:
+        links.append('• Story Productions (Mexico): https://story.mx/')
+    if 'weproduce' in text_lower or 'we produce' in text_lower:
+        links.append('• We Produce (Mexico): https://weproduce.mx/')
+    if 'mexico film' in text_lower:
+        links.append('• Mexico Film Commission: https://www.filmcommission.gob.mx/')
+    
+    # Otros países
+    if 'colombia' in text_lower:
+        links.append('• Colombia Film Commission: https://www.procolombia.co/en/industries/creative-industries/film')
+    if 'spain' in text_lower:
+        links.append('• Spain Film Commission: https://www.spainfilmcommission.com/')
+    if 'japan' in text_lower:
+        links.append('• Japan Film Commission: https://www.japanfc.jp/eng/')
+    if 'united kingdom' in text_lower or 'uk' in text_lower:
+        links.append('• British Film Commission: https://britishfilmcommission.org.uk/')
+    
+    if links:
+        report += "\n### 9. References & Links\n"
+        report += "\n".join(links)
+        report += "\n"
+    
     return report
 
 def process_query(message, demo_mode=False):
