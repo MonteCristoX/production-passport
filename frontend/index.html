@@ -107,10 +107,20 @@
                         id="userInput" 
                         rows="1"
                         placeholder="Describe your production... (e.g., I need to film in Tokyo with drones and 30 extras)"
-                        class="w-full bg-slate-800 border border-slate-700 rounded-xl px-5 py-4 pr-14 text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 resize-none transition-all"
+                        class="w-full bg-slate-800 border border-slate-700 rounded-xl px-5 py-4 pr-24 text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 resize-none transition-all"
                         onkeydown="handleKeyDown(event)"
                         oninput="autoResize(this)"
                     ></textarea>
+                    <button 
+                        id="clearBtn"
+                        onclick="clearInput()"
+                        class="absolute right-26 bottom-2 w-10 h-10 rounded-lg bg-slate-700 hover:bg-slate-600 flex items-center justify-center transition-colors"
+                        title="Clear"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                        </svg>
+                    </button>
                     <button 
                         id="sendBtn"
                         onclick="sendMessage()"
@@ -123,7 +133,9 @@
                     <button 
                         id="cancelBtn"
                         onclick="cancelRequest()"
-                        class="absolute right-14 bottom-2 w-10 h-10 rounded-lg bg-red-600 hover:bg-red-500 flex items-center justify-center transition-colors hidden"
+                        class="absolute right-14 bottom-2 w-10 h-10 rounded-lg bg-slate-700 hover:bg-red-500 flex items-center justify-center transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                        disabled
+                        title="Stop request"
                     >
                         <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
@@ -410,6 +422,12 @@
             if (el) el.remove();
         }
 
+        function clearInput() {
+            userInput.value = '';
+            userInput.style.height = 'auto';
+            userInput.focus();
+        }
+
         async function sendMessage() {
             const text = userInput.value.trim();
             if (!text || isLoading) return;
@@ -421,7 +439,9 @@
             addTypingIndicator();
             isLoading = true;
             sendBtn.disabled = true;
-            document.getElementById('cancelBtn').classList.remove('hidden');
+            document.getElementById('cancelBtn').disabled = false;
+            document.getElementById('cancelBtn').classList.add('bg-red-600');
+            document.getElementById('cancelBtn').classList.remove('bg-slate-700');
             controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), 120000);
 
@@ -454,7 +474,9 @@
 
             isLoading = false;
             sendBtn.disabled = false;
-            document.getElementById('cancelBtn').classList.add('hidden');
+            document.getElementById('cancelBtn').disabled = true;
+            document.getElementById('cancelBtn').classList.remove('bg-red-600');
+            document.getElementById('cancelBtn').classList.add('bg-slate-700');
             controller = null;
             userInput.focus();
         }
