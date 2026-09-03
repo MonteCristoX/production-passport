@@ -55,9 +55,7 @@
             </div>
             <div class="flex items-center gap-2">
                 <span class="px-2 py-1 rounded-full bg-emerald-500/10 text-emerald-400 text-xs font-medium border border-emerald-500/20">● Online</span>
-                <button id="modeToggle" onclick="toggleMode()" class="px-3 py-1.5 rounded-lg text-xs font-bold transition-all bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 hover:bg-emerald-500/30">
-                    🔌 LIVE
-                </button>
+
             </div>
         </div>
     </header>
@@ -155,22 +153,9 @@
         const sendBtn = document.getElementById('sendBtn');
         let isLoading = false;
         let controller = null;
-        let demoMode = false;
-        let sessionId = 'session-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
 
-        function toggleMode() {
-            demoMode = !demoMode;
-            const btn = document.getElementById('modeToggle');
-            if (demoMode) {
-                btn.innerHTML = '📚 DEMO';
-                btn.className = 'px-3 py-1.5 rounded-lg text-xs font-bold transition-all bg-amber-500/20 text-amber-300 border border-amber-500/30 hover:bg-amber-500/30';
-                addMessage('📚 **DEMO MODE** — No APIs will be called. All responses are pre-cached data.', false);
-            } else {
-                btn.innerHTML = '🔌 LIVE';
-                btn.className = 'px-3 py-1.5 rounded-lg text-xs font-bold transition-all bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 hover:bg-emerald-500/30';
-                addMessage('🔌 **LIVE MODE** — Real APIs will be called (Gemini + Parallel). Credits will be consumed.', false);
-            }
-        }
+
+
 
         function autoResize(el) {
             el.style.height = 'auto';
@@ -454,7 +439,7 @@
                 const response = await fetch('/api/chat', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ message: text, demo_mode: demoMode, session_id: sessionId }),
+                    body: JSON.stringify({ message: text }),
                     signal: controller.signal
                 });
                 clearTimeout(timeoutId);

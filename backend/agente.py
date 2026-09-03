@@ -412,16 +412,15 @@ def create_app():
     def chat():
         data = request.json
         msg = data.get("message", "").strip()
-        demo = data.get("demo_mode", False)
         
         if not msg: return jsonify({"success": False, "error": "Empty message"}), 400
         
         try:
-            # Determine if we should use live APIs
-            has_apis = bool(get_key("GEMINI_API_KEY")) and bool(get_key("PARALLEL_API_KEY"))
-            use_live = not demo and has_apis
+            # Check if APIs are configured
+            has_gemini = bool(get_key("GEMINI_API_KEY"))
+            has_parallel = bool(get_key("PARALLEL_API_KEY"))
             
-            if use_live:
+            if has_gemini and has_parallel:
                 report = generate_live_report(msg)
             else:
                 report = generate_demo_report(msg)
