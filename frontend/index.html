@@ -98,14 +98,29 @@
                         <p class="text-slate-200 leading-relaxed">Hey! I'm your film production intelligence agent. I research permits, costs, tax incentives, and local vendor options across countries — and tell you whether it's cheaper to bring your gear or hire locally.</p>
                         <p class="text-slate-400 text-sm mt-3">Tell me about your production. For example:</p>
                         <ul class="text-slate-400 text-sm mt-2 space-y-1.5">
-                            <li class="flex items-center gap-2"><span class="text-indigo-400">→</span> "I need to shoot in a colonial square with 50 extras and drones"</li>
-                            <li class="flex items-center gap-2"><span class="text-indigo-400">→</span> "Comparing Mexico vs Colombia for a night scene with pyrotechnics"</li>
-                            <li class="flex items-center gap-2"><span class="text-indigo-400">→</span> "What's cheaper: bring my camera crew to Bogotá or hire locally?"</li>
+                            <li class="flex items-center gap-2"><span class="text-indigo-400">→</span> "I need to shoot at 34.1017, -118.3398 with 10 crew, 5 actors, 20 extras"</li>
+                            <li class="flex items-center gap-2"><span class="text-indigo-400">→</span> "Comparing California vs New York for a night scene"</li>
+                            <li class="flex items-center gap-2"><span class="text-indigo-400">→</span> "What's cheaper: bring my camera crew to Mexico or hire locally?"</li>
                         </ul>
                     </div>
                 </div>
             </div>
 
+        </div>
+        
+        <!-- Report Full View Toggle -->
+        <div id="reportFullView" class="hidden fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
+            <div class="bg-slate-900 rounded-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+                <div class="flex items-center justify-between p-4 border-b border-slate-700">
+                    <h3 class="text-lg font-semibold text-white">📋 Full Report</h3>
+                    <button onclick="closeFullView()" class="text-slate-400 hover:text-white">✕ Close</button>
+                </div>
+                <div id="fullReportContent" class="flex-1 overflow-y-auto p-6 text-slate-200 font-mono text-sm whitespace-pre-wrap"></div>
+                <div class="p-4 border-t border-slate-700 flex gap-3">
+                    <button onclick="downloadDocxFromFullView()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 rounded-lg text-sm">📥 Download DOCX</button>
+                    <button onclick="copyReport()" class="px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg text-sm">📋 Copy</button>
+                </div>
+            </div>
         </div>
 
         <!-- Input Area -->
@@ -416,6 +431,10 @@
                         ${formattedContent}
                     </div>
                     ${!isUser ? `<div class="report-actions">
+                        <button onclick="openFullView()" class="report-download">
+                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"/></svg>
+                            View Full Report
+                        </button>
                         <button onclick="downloadDocx('${btoa(unescape(encodeURIComponent(content)))}')" class="report-download">
                             <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
                             Download report
@@ -504,6 +523,37 @@
             `;
             chatContainer.appendChild(div);
             chatContainer.scrollTop = chatContainer.scrollHeight;
+            
+            // Store last report for full view
+            if (!isUser) {
+                window.lastFullReport = content;
+                window.lastReportText = content.replace(/\*\*(.*?)\*\*/g, '$1').replace(/#{1,3}\s*/g, '').replace(/•/g, '').trim();
+            }
+        }
+        
+        function openFullView() {
+            if (window.lastReportText) {
+                document.getElementById('fullReportContent').textContent = window.lastReportText;
+                document.getElementById('reportFullView').classList.remove('hidden');
+            }
+        }
+        
+        function closeFullView() {
+            document.getElementById('reportFullView').classList.add('hidden');
+        }
+        
+        function downloadDocxFromFullView() {
+            if (window.lastFullReport) {
+                downloadDocx(btoa(unescape(encodeURIComponent(window.lastFullReport))));
+            }
+        }
+        
+        function copyReport() {
+            if (window.lastReportText) {
+                navigator.clipboard.writeText(window.lastReportText).then(() => {
+                    alert('Report copied to clipboard!');
+                });
+            }
         }
 
         function removeTypingIndicator() {
