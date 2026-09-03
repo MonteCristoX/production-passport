@@ -67,7 +67,7 @@ def get_country_contacts(country):
 
 def get_country_vendors(country):
     vendors = {
-        "Mexico": ["• [Story Productions](https://story.mx/) — Full service", "• [We Produce](https://weproduce.mx/) — Equipment & crew",
+        "Mexico": ["• [Story Productions](https://story.mx/) — Full service", "• [We Produce](https://weproduce.mx/) — Equipment",
                    "• [80 Days Films](https://80daysfilms.com/) — Co-productions", "• [Mexico Film Commission](https://www.filmcommission.gob.mx/) — Permits"],
         "United States": ["• [Film Emissary](https://www.filmemissary.com/) — Insurance", "• [Wrapbook](https://www.wrapbook.com/) — Payroll",
                           "• [ShareGrid](https://www.sharegrid.com/) — Equipment", "• [ProductionHUB](https://www.productionhub.com/) — Crew",
@@ -148,8 +148,7 @@ def generate_live_report(message):
     st = found_state or ""
     states_list = [s.strip() for s in found_state.split(", ") if s.strip()] if found_state else []
     
-    # Search for EACH state separately for real data
-    search_results = []
+    # Search for EACH state separately
     price_data = []
     real_links = []
     all_contacts = []
@@ -159,13 +158,11 @@ def generate_live_report(message):
             f"{state} film permit cost fees 2025",
             f"{state} film crew day rates 2025",
             f"{state} film commission contact email phone",
-            f"{state} production services vendors",
         ]
         for query in queries:
             results = ps(query)
             if results.get("results"):
                 for r in results["results"][:3]:
-                    search_results.append(r)
                     title = r.get("title", "")
                     url = r.get("url", "")
                     snippet = r.get("snippet", "") or r.get("description", "")
@@ -173,7 +170,6 @@ def generate_live_report(message):
                     if snippet and any(kw in snippet.lower() for kw in ["$", "cost", "fee", "rate", "price"]):
                         price_data.append(f"- {title}: {snippet[:150]}")
         
-        # Extract contacts for this state
         state_contacts = extract_contacts(state)
         all_contacts.extend(state_contacts[:3])
     
@@ -197,9 +193,6 @@ def generate_live_report(message):
     drones = any(w in msg_lower for w in ["drone", "drones", "uav", "quadcopter"])
     scene_type = "aerial" if drones else "urban"
     
-    contacts = extract_contacts(cs, st)
-    contacts_text = "\n".join(contacts) if contacts else "Contact local film commission."
-    
     verification_queries = []
     if st: verification_queries.extend([f"{st} drone regulations filming 2025", f"{st} film permit changes 2025"])
     if countries: verification_queries.extend([f"{cs} drone laws filming 2025", f"{cs} film regulations updated"])
@@ -216,39 +209,63 @@ def generate_live_report(message):
     
     verification_text = "\n".join(verification_results[:6]) if verification_results else "No recent updates found. Verify with local authorities."
     
-    prompt = f"""Write a comprehensive film production report based on real search data.
+    # Build per-state data sections
+    state_data_sections = ""
+    for state in states_list if states_list else [cs]:
+        state_prices = [p for p in price_data if state.lower() in p.lower()]
+        state_links = [l for l in real_links if state.lower() in l.lower()]
+        state_contacts_list = [c for c in all_contacts if state.lower() in c.lower()]
+        
+        state_data_sections += f"\n\n**{state}:**\n"
+        if state_prices:
+            state_data_sections += "Prices:\n" + "\n".join(state_prices[:3]) + "\n"
+        if state_contacts_list:
+            state_data_sections += "Contacts:\n" + "\n".join(state_contacts_list[:2]) + "\n"
+        if state_links:
+            state_data_sections += "Links:\n" + "\n".join(state_links[:3]) + "\n"
+    
+    prompt = f"""Write a comprehensive film production report comparing multiple locations. Use REAL data from search results.
 
 PRODUCTION DETAILS:
-- Location: {cs}{" ("+st+")" if st else ""}
+- Locations: {cs}{" ("+st+")" if st else ""}
 - Scene type: {scene_type}
 - Crew size: {crew_size}
 - Extras: {extras}
 - Budget: ${budget:,}
 - Drones: {"Yes" if drones else "No"}
 
-REAL PRICE DATA FROM WEB SEARCH:
+PER-STATE DATA FROM WEB SEARCH:
+{state_data_sections}
+
+ALL PRICE DATA:
 {price_text}
 
-REAL CONTACTS FOUND:
+ALL CONTACTS:
 {contacts_text}
 
-REQUIREMENTS VERIFICATION DATA:
+REQUIREMENTS VERIFICATION:
 {verification_text}
 
-REAL SOURCE LINKS:
+ALL SOURCE LINKS:
 {links_text}
 
-Write a detailed report with these sections:
-1. Executive Summary (use production details above)
-2. Country/State Analysis (include real permit costs from search data)
-3. Bring vs Hire: Cost Analysis (use real price data)
-4. Insurance Requirements
-5. Actionable Checklist
-6. Key Contacts (use real contacts found above)
-7. Requirements Verification (use verification data above)
-8. References & Links (use ONLY URLs from search results)
+Write a detailed report with these sections. For EACH location, provide separate data where available:
 
-IMPORTANT: Use real data from search results. Include specific costs. Include contact info. Cite sources with markdown links."""
+1. Executive Summary (mention all locations)
+2. Location Comparison (separate subsection for EACH state with its own permit costs, incentives, contacts)
+3. Bring vs Hire: Cost Analysis (compare costs between locations)
+4. Insurance Requirements (note any location-specific requirements)
+5. Actionable Checklist (organized by location where relevant)
+6. Key Contacts (separate contacts for EACH location)
+7. Requirements Verification (note location-specific regulations)
+8. References & Links (organize by location)
+
+IMPORTANT: 
+- Use real data from search results
+- Separate information by location throughout the report
+- Include specific costs for each location
+- Include contact info for each location
+- Cite sources using markdown links"""
     
     result = gm(prompt)
     if result.startswith("Error:"): return generate_demo_report(message)
@@ -317,7 +334,7 @@ def generate_demo_report(message):
         loc_info += f"\n   📍 Coordinates: {location['lat']}, {location['lng']}"
         loc_info += f"\n   🗺️ Google Maps: https://www.google.com/maps?q={location['lat']},{location['lng']}"
     
-    # For multiple locations, use Gemini to generate comparison
+    # Per-state comparison sections
     state_sections = ""
     states_list = [s.strip() for s in found_state.split(", ") if s.strip()] if found_state else []
     if len(states_list) >= 2:
