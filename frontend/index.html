@@ -301,12 +301,10 @@
             if (current) sections.push(current);
 
             if (!sections.length) {
-                return `<div class="report-shell"><div class="report-content"><p class="report-copy">${inlineMarkdown(content)}</p></div></div>`;
+                return `<div class="space-y-4"><div class="text-slate-200">${inlineMarkdown(content).replace(/\n/g, '<br>')}</div></div>`;
             }
 
-            return `<div class="report-shell">
-                <div class="report-content">${sections.map(renderReportSection).join('')}</div>
-            </div>`;
+            return `<div class="space-y-4">${sections.map(renderReportSection).join('')}</div>`;
         }
 
         function renderReportSection(section) {
@@ -316,12 +314,12 @@
 
             const flushBullets = () => {
                 if (!bullets.length) return;
-                content.push(`<ul class="report-list">${bullets.map(item => `<li>${inlineMarkdown(item)}</li>`).join('')}</ul>`);
+                content.push(`<ul class="list-disc pl-5 space-y-1 text-slate-300">${bullets.map(item => `<li>${inlineMarkdown(item)}</li>`).join('')}</ul>`);
                 bullets = [];
             };
             const flushChecks = () => {
                 if (!checks.length) return;
-                content.push(`<ul class="report-checklist">${checks.map(item => `<li>${inlineMarkdown(item)}</li>`).join('')}</ul>`);
+                content.push(`<ul class="space-y-1 text-slate-300">${checks.map(item => `<li class="flex items-start gap-2"><span class="text-indigo-400">☐</span><span>${inlineMarkdown(item)}</span></li>`).join('')}</ul>`);
                 checks = [];
             };
 
@@ -347,16 +345,16 @@
                 if (recommendationMatch) {
                     flushBullets();
                     flushChecks();
-                    content.push(`<div class="report-highlight">${inlineMarkdown(recommendationMatch[1])}</div>`);
+                    content.push(`<div class="bg-indigo-500/10 border-l-4 border-indigo-500 rounded-r-lg px-4 py-3 text-slate-200">${inlineMarkdown(recommendationMatch[1])}</div>`);
                     return;
                 }
 
                 flushBullets();
                 flushChecks();
-                if (/recommendation|estimated daily total|budget/i.test(line)) {
-                    content.push(`<div class="report-highlight">${inlineMarkdown(line)}</div>`);
+                if (/recommendation|estimated daily total|budget|total/i.test(line)) {
+                    content.push(`<div class="bg-indigo-500/10 border-l-4 border-indigo-500 rounded-r-lg px-4 py-3 text-slate-200 font-medium">${inlineMarkdown(line)}</div>`);
                 } else {
-                    content.push(`<p class="report-copy">${inlineMarkdown(line)}</p>`);
+                    content.push(`<p class="text-slate-300 leading-relaxed">${inlineMarkdown(line)}</p>`);
                 }
             });
 
@@ -364,9 +362,9 @@
             flushChecks();
 
             const sectionTitle = section.title.replace(/^\d+\.\s*/, '');
-            return `<section class="report-section">
-                <h3 class="report-section-heading">${inlineMarkdown(sectionTitle)}</h3>
-                ${content.join('')}
+            return `<section class="bg-slate-800/50 border border-slate-700/50 rounded-xl p-5">
+                <h3 class="text-lg font-semibold text-white mb-3 pb-2 border-b border-slate-700">${inlineMarkdown(sectionTitle)}</h3>
+                <div class="space-y-2">${content.join('')}</div>
             </section>`;
         }
 
