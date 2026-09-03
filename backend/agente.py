@@ -46,6 +46,70 @@ def reverse_geocode(lat, lng):
     except: pass
     return {"city": "", "neighborhood": "", "state": "", "country": "", "full": f"{lat}, {lng}"}
 
+def get_country_contacts(country):
+    """Get country-specific film commission contacts."""
+    contacts = {
+        "Mexico": [
+            "• **Mexico Film Commission**",
+            "  📧 film@filmcommission.gob.mx",
+            "  🌐 [filmcommission.gob.mx](https://www.filmcommission.gob.mx/)",
+            "",
+            "• **Story Productions (Mexico City)**",
+            "  📧 info@story.mx",
+            "  🌐 [story.mx](https://story.mx/)",
+            "",
+            "• **80 Days Films**",
+            "  📧 info@80daysfilms.com",
+            "  🌐 [80daysfilms.com](https://80daysfilms.com/)",
+        ],
+        "United States": [
+            "• **FilmLA (Los Angeles)**",
+            "  📧 info@filmla.com",
+            "  📞 (213) 977-8600",
+            "  🌐 [filmla.com](https://www.filmla.com/)",
+            "",
+            "• **CA Film Commission**",
+            "  📧 info@film.ca.gov",
+            "  🌐 [film.ca.gov](https://www.film.ca.gov/)",
+            "",
+            "• **SAG-AFTRA**",
+            "  📧 info@sagaftra.org",
+            "  🌐 [sagaftra.org](https://www.sagaftra.org/)",
+        ],
+        "California": [
+            "• **FilmLA (Los Angeles)**",
+            "  📧 info@filmla.com",
+            "  📞 (213) 977-8600",
+            "  🌐 [filmla.com](https://www.filmla.com/)",
+            "",
+            "• **CA Film Commission**",
+            "  📧 info@film.ca.gov",
+            "  🌐 [film.ca.gov](https://www.film.ca.gov/)",
+        ],
+        "Colombia": [
+            "• **ProColombia Film**",
+            "  📧 film@procolombia.co",
+            "  🌐 [procolombia.co](https://www.procolombia.co/en/industries/creative-industries/film)",
+        ],
+        "Spain": [
+            "• **Spain Film Commission**",
+            "  📧 info@spainfilmcommission.com",
+            "  🌐 [spainfilmcommission.com](https://www.spainfilmcommission.com/)",
+        ],
+        "Japan": [
+            "• **Japan Film Commission**",
+            "  📧 info@japanfc.jp",
+            "  🌐 [japanfc.jp](https://www.japanfc.jp/eng/)",
+        ],
+        "United Kingdom": [
+            "• **British Film Commission**",
+            "  📧 info@britishfilmcommission.org.uk",
+            "  🌐 [britishfilmcommission.org.uk](https://britishfilmcommission.org.uk/)",
+        ],
+    }
+    return "
+".join(contacts.get(country, ["• Contact local film office for specific contacts"]))
+
 def get_country_vendors(country):
     """Get country-specific vendor links."""
     vendors = {
@@ -83,6 +147,63 @@ def get_country_vendors(country):
         ],
     }
     return "\n".join(vendors.get(country, ["• Contact local film office for vendor recommendations"]))
+
+def extract_contacts(country, state=None):
+    """Extract film commission and vendor contacts using Parallel API."""
+    contacts = []
+    
+    # Build search queries
+    queries = []
+    if state:
+        queries.append(f"{state} film commission contact email phone office")
+        queries.append(f"{state} film permit office contact information 2025")
+        queries.append(f"{state} production services company contact email")
+    if country:
+        queries.append(f"{country} film commission contact email phone")
+        queries.append(f"{country} film permit office contact information")
+        queries.append(f"{country} production services film crew contact")
+    
+    # Execute searches
+    search_results = []
+    for query in queries[:4]:  # Limit to 4 queries
+        results = ps(query)
+        if results.get("results"):
+            search_results.extend(results["results"][:3])
+    
+    # Extract contact information from snippets
+    for r in search_results:
+        title = r.get("title", "")
+        url = r.get("url", "")
+        snippet = r.get("snippet", "") or r.get("description", "")
+        
+        if not url or not title:
+            continue
+        
+        # Extract email from snippet
+        email_match = re.search(r'[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}', snippet)
+        email = email_match.group(0) if email_match else None
+        
+        # Extract phone from snippet
+        phone_match = re.search(r'(?:\+?\d{1,3}[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}', snippet)
+        phone = phone_match.group(0) if phone_match else None
+        
+        # Only add if we found contact info or it's a relevant org
+        if email or phone or 'film commission' in title.lower() or 'permit' in title.lower():
+            contact_entry = f"• **{title}**"
+            if email:
+                contact_entry += f"
+  📧 {email}"
+            if phone:
+                contact_entry += f"
+  📞 {phone}"
+            contact_entry += f"
+  🌐 [{url}]({url})"
+            
+            # Avoid duplicates
+            if not any(c.startswith(contact_entry[:50]) for c in contacts):
+                contacts.append(contact_entry)
+    
+    return contacts[:8]  # Return top 8 contacts
 
 def generate_live_report(message):
     """Generate report using live APIs with real-time price research."""
@@ -176,7 +297,12 @@ def generate_live_report(message):
     drones = any(w in msg_lower for w in ["drone", "drones", "uav", "quadcopter"])
     scene_type = "aerial" if drones else "urban"
     
-    # 5. Generate report with real data
+    # 5. Extract real contacts
+    contacts = extract_contacts(cs, st)
+    contacts_text = "
+".join(contacts) if contacts else "No specific contacts found. Contact local film commission."
+    
+    # 6. Generate report with real data
     prompt = f"""Write a comprehensive film production report based on real search data.
 
 PRODUCTION DETAILS:
@@ -190,6 +316,9 @@ PRODUCTION DETAILS:
 REAL PRICE DATA FROM WEB SEARCH:
 {price_text}
 
+REAL CONTACTS FOUND:
+{contacts_text}
+
 REAL SOURCE LINKS:
 {links_text}
 
@@ -199,11 +328,13 @@ Write a detailed report with these sections:
 3. Bring vs Hire: Cost Analysis (use real price data from search results)
 4. Insurance Requirements (mention real rates if found)
 5. Actionable Checklist
-6. References & Links (use ONLY URLs from search results above)
+6. Key Contacts (use the real contacts found above with emails and phones)
+7. References & Links (use ONLY URLs from search results above)
 
 IMPORTANT: 
 - Use real data from search results where available
 - Include specific costs and fees found in search
+- Include contact information (emails, phones) in the contacts section
 - Cite sources using markdown links
 - If search didn't find specific prices, use reasonable estimates and note them as such"""
 
@@ -371,7 +502,10 @@ Budget: **${budget:,}**. Key challenges: permits, crew, compliance, insurance.{l
 ### 6. Final Recommendation
 Proceed with **{cs}** — contact local production services for permits, hiring, and compliance. Budget **$6,000 – $12,000/day** all-in. Start permit process **minimum 4 weeks before shoot**.
 
-### 7. References & Links
+### 7. Key Contacts
+{get_country_contacts(cs)}
+
+### 8. References & Links
 {get_country_vendors(cs)}
 
 ---
