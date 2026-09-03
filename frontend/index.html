@@ -450,6 +450,12 @@
             
             chatContainer.appendChild(div);
             chatContainer.scrollTop = chatContainer.scrollHeight;
+
+            // Store the latest assistant report for the full-view actions.
+            if (!isUser) {
+                window.lastFullReport = content;
+                window.lastReportText = content.replace(/\*\*(.*?)\*\*/g, '$1').replace(/#{1,3}\s*/g, '').replace(/•/g, '').trim();
+            }
         }
 
         async function downloadDocx(base64Content) {
@@ -523,12 +529,6 @@
             `;
             chatContainer.appendChild(div);
             chatContainer.scrollTop = chatContainer.scrollHeight;
-            
-            // Store last report for full view
-            if (!isUser) {
-                window.lastFullReport = content;
-                window.lastReportText = content.replace(/\*\*(.*?)\*\*/g, '$1').replace(/#{1,3}\s*/g, '').replace(/•/g, '').trim();
-            }
         }
         
         function openFullView() {
