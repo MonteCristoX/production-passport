@@ -234,10 +234,18 @@
         }
 
         function formatAssistantContent(content) {
-            const looksLikeReport = /Film Production Report|Executive Summary|Permits & Costs|Final Recommendation|┌/i.test(content);
-            return looksLikeReport
-                ? formatReport(content)
-                : `<div class="text-slate-200 leading-relaxed">${inlineMarkdown(content).replace(/\n/g, '<br>')}</div>`;
+            // Always render markdown to HTML
+            const htmlContent = inlineMarkdown(content);
+            
+            // Check if it looks like a full report
+            const looksLikeReport = /Film Production Report|Executive Summary|Permits & Costs|Final Recommendation/i.test(content);
+            
+            if (looksLikeReport) {
+                return formatReport(content);
+            }
+            
+            // For shorter responses, still render as formatted HTML
+            return `<div class="text-slate-200 leading-relaxed">${htmlContent.replace(/\n/g, '<br>')}</div>`;
         }
 
         function inlineMarkdown(value) {
