@@ -147,6 +147,17 @@ def extract_production_info(message):
             location.update({"city": geo["city"], "state": geo["state"], "neighborhood": geo["neighborhood"], "full_address": geo["full"]})
             if "united states" in geo.get("country", "").lower():
                 countries.append("United States")
+                if geo.get("state"):
+                    found_state = geo["state"]
+            else:
+                # Add geocoded country for non-US locations
+                geo_country = geo.get("country", "").lower()
+                country_map = {"mexico": "Mexico", "colombia": "Colombia", "spain": "Spain", 
+                               "japan": "Japan", "united kingdom": "United Kingdom", "france": "France"}
+                for key, val in country_map.items():
+                    if key in geo_country:
+                        countries.append(val)
+                        break
                 if geo.get("state"): found_state = geo["state"]
     
     maps_match = re.search(r'(https?://(?:www\.)?google\.com/maps/[^\s]+)', message)
