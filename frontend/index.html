@@ -19,6 +19,26 @@
         .scrollbar-thin::-webkit-scrollbar { width: 6px; }
         .scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
         .scrollbar-thin::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
+        
+        /* Report styling */
+        .report-shell { max-width: 100%; }
+        .report-content { display: flex; flex-direction: column; gap: 1.5rem; }
+        .report-section { background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(71, 85, 105, 0.3); border-radius: 12px; padding: 1.25rem; }
+        .report-section-heading { font-size: 1.1rem; font-weight: 600; color: #e2e8f0; margin-bottom: 0.75rem; padding-bottom: 0.5rem; border-bottom: 1px solid rgba(71, 85, 105, 0.3); }
+        .report-list { list-style: disc; padding-left: 1.25rem; margin: 0.5rem 0; }
+        .report-list li { margin: 0.25rem 0; color: #cbd5e1; }
+        .report-checklist { list-style: none; padding-left: 0; margin: 0.5rem 0; }
+        .report-checklist li { margin: 0.25rem 0; color: #cbd5e1; padding-left: 1.5rem; position: relative; }
+        .report-checklist li::before { content: '☐'; position: absolute; left: 0; color: #818cf8; }
+        .report-highlight { background: rgba(99, 102, 241, 0.1); border-left: 3px solid #6366f1; padding: 0.75rem 1rem; margin: 0.5rem 0; border-radius: 0 8px 8px 0; color: #e2e8f0; }
+        .report-copy { margin: 0.25rem 0; color: #cbd5e1; line-height: 1.6; }
+        .report-bubble { max-width: 94%; }
+        
+        /* Action buttons */
+        .report-actions { display: flex; gap: 0.5rem; margin-top: 0.75rem; flex-wrap: wrap; }
+        .report-download { display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.4rem 0.75rem; background: rgba(99, 102, 241, 0.15); border: 1px solid rgba(99, 102, 241, 0.3); border-radius: 8px; color: #a5b4fc; font-size: 0.75rem; cursor: pointer; transition: all 0.2s; }
+        .report-download:hover { background: rgba(99, 102, 241, 0.25); color: #c7d2fe; }
+        .report-download svg { width: 1rem; height: 1rem; }
     </style>
 </head>
 <body class="gradient-bg text-white min-h-screen flex flex-col">
