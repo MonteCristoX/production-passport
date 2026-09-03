@@ -2,12 +2,9 @@ import os, json, requests
 import re
 import tempfile
 from datetime import datetime
-from concurrent.futures import ThreadPoolExecutor, as_completed
 from flask import Flask, request, jsonify, send_file
 from flask_cors import CORS
 import io
-
-sessions = {}
 
 def get_key(name):
     return os.environ.get(name, "")
@@ -49,150 +46,157 @@ def reverse_geocode(lat, lng):
     except: pass
     return {"city": "", "neighborhood": "", "state": "", "country": "", "full": f"{lat}, {lng}"}
 
-def extract_production_info(msg):
-    """Extract production info from message - simple and robust."""
-    msg_lower = msg.lower()
-    location = None
-    location_type = "unknown"
-    found_state = None
-    countries = []
+def generate_report(message):
+    """Generate a complete production report from a single user message."""
+    msg_lower = message.lower()
     
-    # 1. Detect coordinates
-    coord_match = re.search(r'(-?\d+\.?\d*)\s*,\s*(-?\d+\.?\d*)', msg)
+    # 1. Detect location
+    countries = []
+    location = None
+    found_state = None
+    
+    # Check coordinates
+    coord_match = re.search(r'(-?\d+\.?\d*)\s*,\s*(-?\d+\.?\d*)', message)
     if coord_match:
         lat, lng = float(coord_match.group(1)), float(coord_match.group(2))
-        location = {"lat": lat, "lng": lng, "name": f"{lat}, {lng}"}
-        location_type = "coordinates"
+        location = {"lat": lat, "lng": lng}
         geo = reverse_geocode(lat, lng)
         if geo["city"]:
             location.update(geo)
             if "united states" in geo.get("country", "").lower():
-                if "United States" not in countries: countries.append("United States")
-                if geo.get("state"): found_state = geo["state"]
+                countries.append("United States")
+                found_state = geo.get("state")
             elif geo.get("country"):
                 countries.append(geo["country"])
     
-    # 2. Detect countries
+    # Check country keywords
     country_keywords = {"united states": "United States", "usa": "United States", "mexico": "Mexico", 
                        "colombia": "Colombia", "spain": "Spain", "japan": "Japan", "uk": "United Kingdom",
-                       "france": "France", "germany": "Germany", "italy": "Italy", "brazil": "Brazil",
-                       "canada": "Canada", "costa rica": "Costa Rica"}
+                       "france": "France", "germany": "Germany", "brazil": "Brazil", "canada": "Canada", "costa rica": "Costa Rica"}
     for kw, country in country_keywords.items():
         if kw in msg_lower and country not in countries:
             countries.append(country)
     
-    # 3. Detect US states (only if USA detected)
-    if "United States" in countries:
-        state_keywords = {"california": "California", "new york": "New York", "georgia": "Georgia",
-                         "louisiana": "Louisiana", "texas": "Texas", "florida": "Florida"}
-        for kw, state in state_keywords.items():
-            if kw in msg_lower:
-                found_state = state
-                break
+    if not countries:
+        return "Please specify a destination country or US state. Examples: California, New York, Mexico, Spain, Japan, etc."
     
-    # 4. Extract numbers and assign by keyword proximity
-    all_nums = [int(n.replace(',', '')) for n in re.findall(r'\b\d{1,3}(?:,\d{3})*\b', msg_lower)]
+    # 2. Extract numbers (crew, extras, budget)
+    all_nums = [int(n.replace(',', '')) for n in re.findall(r'\b(\d{1,3}(?:,\d{3})*)\b', msg_lower)]
+    
+    crew_size = extras = budget = 0
     
     # Find keywords with positions
-    kw_positions = []
-    for match in re.finditer(r'(crew|extras|actors|principals|talent|people|staff|team)', msg_lower):
-        kw_positions.append((match.start(), match.group(1)))
-    
-    # Assign numbers to closest keyword
-    crew_size = extras = principals = 0
-    budget_usd = 0
-    
-    used_indices = set()
     for num in all_nums:
-        num_pos = msg_lower.find(str(num).replace(',', ''))
-        best_kw = None
-        best_dist = float('inf')
+        num_pos = msg_lower.find(str(num))
+        context = msg_lower[max(0, num_pos-20):num_pos+20]
         
-        for kw_pos, kw in kw_positions:
-            dist = abs(num_pos - kw_pos)
-            if dist < best_dist and dist < 30:  # Max 30 chars apart
-                best_dist = dist
-                best_kw = kw
-        
-        if best_kw == 'crew': crew_size = num
-        elif best_kw in ['extras', 'actors']: extras = num
-        elif best_kw in ['principals', 'talent']: principals = num
-        elif best_kw in ['people', 'staff', 'team'] and crew_size == 0: crew_size = num
+        if 'crew' in context and crew_size == 0:
+            crew_size = num
+        elif 'extr' in context or 'actor' in context:
+            extras = num
+        elif any(w in context for w in ['budget', 'cost', 'dollar', 'usd', 'spend', 'invest']) and budget == 0:
+            budget = num
     
-    # Fallback: if crew and extras still 0 but we have 2+ numbers
-    if crew_size == 0 and extras == 0 and len(all_nums) >= 2:
+    # Fallback: if no keywords matched but we have numbers
+    if crew_size == 0 and len(all_nums) >= 2:
         crew_size = all_nums[0]
-        extras = all_nums[1]
+        if len(all_nums) >= 3 and budget == 0:
+            budget = all_nums[2]
     elif crew_size == 0 and len(all_nums) == 1:
         crew_size = all_nums[0]
     
-    # 5. Detect budget (only with money keywords)
-    if any(kw in msg_lower for kw in ['budget', 'cost', 'dollars', 'usd', 'thousand', 'million', 'spend', 'invest']):
-        for num in sorted(all_nums, reverse=True):
-            if num > 100:  # Ignore small numbers
-                budget_usd = num
-                break
-    
-    # 6. Detect features
-    drones = any(w in msg_lower for w in ["drone", "drones", "uav", "quadcopter", "fpv"])
+    # 3. Detect features
+    drones = any(w in msg_lower for w in ["drone", "drones", "uav", "quadcopter"])
     pyrotechnics = any(w in msg_lower for w in ["pyro", "pyrotechnics", "fireworks", "explosion"])
     night_shoot = any(w in msg_lower for w in ["night", "evening", "dusk", "dark"])
-    water_related = any(w in msg_lower for w in ["water", "lake", "river", "sea", "ocean", "boat", "ship"])
+    water = any(w in msg_lower for w in ["water", "lake", "river", "sea", "ocean", "boat"])
     
     scene_type = "urban"
     if drones: scene_type = "aerial"
-    elif water_related: scene_type = "water"
+    elif water: scene_type = "water"
     elif any(w in msg_lower for w in ["mountain", "beach", "forest", "desert"]): scene_type = "natural"
-    elif any(w in msg_lower for w in ["colonial", "historic"]): scene_type = "heritage"
     
-    return {
-        "countries": countries, "location": location, "location_type": location_type,
-        "scene_type": scene_type, "extras": extras, "principals": principals,
-        "crew_size": crew_size, "drones": drones, "pyrotechnics": pyrotechnics,
-        "night_shoot": night_shoot, "water_related": water_related,
-        "budget_usd": budget_usd, "state": found_state, "error": False
-    }
-
-def generate_demo_report(data):
-    """Generate a demo report."""
-    if not data.get("countries"):
-        return "Please specify a destination country or US state."
-    
-    cs = ", ".join(data.get("countries", []))
-    st = data.get("state", "")
+    # 4. Generate report
+    cs = ", ".join(countries)
+    st = found_state or ""
     loc_str = f" ({st})" if st else ""
-    crew = data.get("crew_size", 10)
-    extras = data.get("extras", 0)
-    budget = data.get("budget_usd", 0)
-    drones = "with drones" if data.get("drones") else "no drones"
     
     loc_info = ""
-    if data.get("location") and data["location"].get("city"):
-        loc_info = f"\n📍 Location: {data['location']['city']}, {data['location'].get('state', '')}"
-        loc_info += f"\n   Google Maps: https://www.google.com/maps?q={data['location']['lat']},{data['location']['lng']}"
+    if location and location.get("city"):
+        loc_info = f"\n\n📍 **Filming Location:** {location['city']}, {location.get('state', '')}"
+        loc_info += f"\n   📍 Coordinates: {location['lat']}, {location['lng']}"
+        loc_info += f"\n   🗺️ Google Maps: https://www.google.com/maps?q={location['lat']},{location['lng']}"
     
     return f"""## Film Production Report
 Generated: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
 
 ### 1. Executive Summary
-Production for {cs}{loc_str} ({data.get('scene_type', 'urban')} location) with {extras} extras, {crew} crew, {drones}.
-Budget: ${budget:,}. Key challenges: permits, crew, compliance, insurance.{loc_info}
+Production for **{cs}**{loc_str} ({scene_type} location) with **{extras}** extras, **{crew_size}** crew.
+Budget: **${budget:,}**. Key challenges: permits, crew, compliance, insurance.{loc_info}
 
 ### 2. Country Analysis
-**{cs}** - Risk: MEDIUM
-- Permit Cost: $200-$4,000/day
-- Processing Time: 7-21 days
-- Contact local film commission for specific requirements
+**{cs}**
+- **Risk Level:** MEDIUM
+- **Permit Cost:** $200 - $4,000/day
+- **Processing Time:** 7-21 business days
+- **Key Restrictions:** Local film commission approval required
+- **Show Stoppers:** Permit processing delays, local regulations vary
 
-### 3. Next Steps
-1. Contact local film office for permits
-2. Secure insurance quotes
-3. Verify property permissions
-4. File permit application (3-5 business days)
-5. Coordinate SAG-AFTRA casting if using union actors
+### 3. Bring vs Hire: Cost Analysis
 
-### 4. References
-• Contact local film commission for specific links
+**Gear Rental (Daily Rates - Estimated):**
+- Camera package (ARRI Alexa Mini / RED): $400 – $800/day
+- Lens set (cine primes): $200 – $400/day
+- Lighting package (HMI/LED): $300 – $600/day
+- Grip equipment: $150 – $300/day
+
+**Crew Day Rates (Local Hire - Estimated):**
+- Director of Photography: $600 – $1,200/day
+- Gaffer / Key Grip: $350 – $600/day
+- Camera Assistant (1st/2nd AC): $250 – $450/day
+- Production Manager: $400 – $800/day
+- Location Manager: $300 – $500/day
+- Sound Mixer: $350 – $600/day
+- **Extras ({extras} people):** $75 – $150/person/day = ${extras*75} – ${extras*150}/day
+
+**Estimated Daily Total (local hire):** $6,000 – $12,000/day
+
+### 4. Insurance Requirements
+
+**Medical Insurance ({crew_size + extras} crew):**
+- Travel medical insurance for foreign crew (min $100K coverage)
+- Emergency evacuation coverage
+- Repatriation coverage
+
+**Equipment Insurance - Brought to Location:**
+- All-risk equipment coverage (theft, damage, loss)
+- Transit insurance (door-to-door)
+- Replacement value coverage
+
+**Liability Insurance:**
+- General liability: $1M-$5M per occurrence
+- Third-party injury coverage
+- Property damage coverage
+
+### 5. Actionable Checklist
+
+**Pre-Production:**
+- [ ] Contact local film commission for permit requirements
+- [ ] Secure insurance quotes from recommended providers
+- [ ] Verify property permissions (written authorization)
+- [ ] File permit application (3-5 business days)
+
+**Logistics:**
+- [ ] Book production-friendly hotels with early breakfast
+- [ ] Arrange on-set catering (3 meals + snacks)
+- [ ] Rent production vehicles (cube truck, passenger van, trailer)
+- [ ] Verify nearest hospital with ER and foreign language support
+
+### 6. Final Recommendation
+Proceed with **{cs}** — contact local production services for permits, hiring, and compliance. Budget **$6,000 – $12,000/day** all-in. Start permit process **minimum 4 weeks before shoot**.
+
+---
+*Demo mode — connect APIs for live research and real-time data.*
 """
 
 def generate_docx(text):
@@ -206,8 +210,12 @@ def generate_docx(text):
         if not line: continue
         if line.startswith('## '): doc.add_heading(line[3:], level=2)
         elif line.startswith('### '): doc.add_heading(line[4:], level=3)
-        elif line.startswith('•'): doc.add_paragraph(line[1:].strip()).style = 'List Bullet'
-        elif line and not line.startswith('['): doc.add_paragraph(line.replace('**', ''))
+        elif line.startswith('•') or line.startswith('-'):
+            doc.add_paragraph(line[1:].strip()).style = 'List Bullet'
+        elif line.startswith('['):
+            doc.add_paragraph(line).style = 'List Bullet'
+        elif line and not line.startswith('['):
+            doc.add_paragraph(line.replace('**', ''))
     with tempfile.NamedTemporaryFile(suffix='.docx', delete=False) as tmp:
         doc.save(tmp.name)
         with open(tmp.name, 'rb') as f: data = f.read()
@@ -226,57 +234,14 @@ def create_app():
         data = request.json
         msg = data.get("message", "").strip()
         demo = data.get("demo_mode", False)
-        session_id = data.get("session_id", "default")
         
-        if not msg: return jsonify({"success": False, "error": "Empty"}), 400
+        if not msg: return jsonify({"success": False, "error": "Empty message"}), 400
         
-        if session_id not in sessions:
-            sessions[session_id] = {"data": {}, "stage": "gathering"}
-        
-        session = sessions[session_id]
-        
-        # Check for final trigger
-        final_triggers = ["no", "listo", "así está", "generar", "proceed", "ready", "done", "perfect"]
-        if any(t in msg.lower() for t in final_triggers) and session["data"].get("countries"):
-            merged = session["data"]
-            merged.setdefault("crew_size", 10)
-            merged.setdefault("extras", 0)
-            merged.setdefault("budget_usd", 0)
-            report = generate_demo_report(merged)
-            session["stage"] = "complete"
-            return jsonify({"success": True, "response": report, "stage": "complete"})
-        
-        # Extract info from message
-        new_data = extract_production_info(msg)
-        
-        # Merge with existing data
-        for key, val in new_data.items():
-            if val and val not in [0, False, "", []]:
-                session["data"][key] = val
-        
-        # Check what's missing
-        missing = []
-        if not session["data"].get("countries"): missing.append("destination country")
-        if not session["data"].get("crew_size"): missing.append("crew size")
-        if session["data"].get("extras", 0) == 0: missing.append("extras")
-        if session["data"].get("budget_usd", 0) == 0: missing.append("budget")
-        
-        if missing:
-            response = f"So far I have:\n"
-            if session["data"].get("countries"): response += f"  • 📍 {', '.join(session['data']['countries'])}\n"
-            if session["data"].get("crew_size"): response += f"  • 👥 {session['data']['crew_size']} crew\n"
-            if session["data"].get("extras"): response += f"  • 🎭 {session['data']['extras']} extras\n"
-            if session["data"].get("budget_usd"): response += f"  • 💰 ${session['data']['budget_usd']:,}\n"
-            response += f"\nWhat's your {missing[0]}?"
-            return jsonify({"success": True, "response": response, "stage": "gathering"})
-        else:
-            merged = session["data"]
-            merged.setdefault("crew_size", 10)
-            merged.setdefault("extras", 0)
-            merged.setdefault("budget_usd", 0)
-            report = generate_demo_report(merged)
-            session["stage"] = "complete"
-            return jsonify({"success": True, "response": report, "stage": "complete"})
+        try:
+            report = generate_report(msg)
+            return jsonify({"success": True, "response": report})
+        except Exception as e:
+            return jsonify({"success": False, "error": str(e)}), 500
     
     @app.route("/api/export-docx", methods=["POST"])
     def export_docx():
