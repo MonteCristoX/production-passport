@@ -46,6 +46,44 @@ def reverse_geocode(lat, lng):
     except: pass
     return {"city": "", "neighborhood": "", "state": "", "country": "", "full": f"{lat}, {lng}"}
 
+def get_country_vendors(country):
+    """Get country-specific vendor links."""
+    vendors = {
+        "Mexico": [
+            "• [Story Productions](https://story.mx/) — Full service production",
+            "• [We Produce](https://weproduce.mx/) — Equipment & crew",
+            "• [80 Days Films](https://80daysfilms.com/) — International co-productions",
+            "• [Mexico Film Commission](https://www.filmcommission.gob.mx/) — Permits & locations",
+        ],
+        "United States": [
+            "• [Film Emissary](https://www.filmemissary.com/) — Insurance",
+            "• [Wrapbook](https://www.wrapbook.com/) — Payroll + Insurance",
+            "• [ShareGrid](https://www.sharegrid.com/) — Equipment rental",
+            "• [ProductionHUB](https://www.productionhub.com/) — Crew & vendors",
+            "• [SAG-AFTRA](https://www.sagaftra.org/) — Union resources",
+            "• [FilmLA](https://www.filmla.com/) — LA permits",
+        ],
+        "California": [
+            "• [FilmLA](https://www.filmla.com/) — LA City permits",
+            "• [CA Film Commission](https://www.film.ca.gov/) — State incentives",
+            "• [SAG-AFTRA](https://www.sagaftra.org/) — Union rates",
+        ],
+        "Colombia": [
+            "• [ProColombia Film](https://www.procolombia.co/en/industries/creative-industries/film) — Film commission",
+            "• [Cartagena Film Festival](https://www.cartagenafilmfestival.com/) — Festival info",
+        ],
+        "Spain": [
+            "• [Spain Film Commission](https://www.spainfilmcommission.com/) — Locations & permits",
+        ],
+        "Japan": [
+            "• [Japan Film Commission](https://www.japanfc.jp/eng/) — Production resources",
+        ],
+        "United Kingdom": [
+            "• [British Film Commission](https://britishfilmcommission.org.uk/) — UK production",
+        ],
+    }
+    return "\n".join(vendors.get(country, ["• Contact local film office for vendor recommendations"]))
+
 def generate_live_report(message):
     """Generate report using live APIs (Gemini + Parallel)."""
     # Gather real data from Parallel
