@@ -146,28 +146,40 @@ def generate_live_report(message):
     
     cs = ", ".join(countries)
     st = found_state or ""
+    states_list = [s.strip() for s in found_state.split(", ") if s.strip()] if found_state else []
     
-    search_queries = []
-    if st: search_queries.extend([f"{st} film permit cost fees 2025", f"{st} film crew day rates 2025"])
-    if countries: search_queries.extend([f"{cs} film permit costs 2025", f"{cs} film insurance rates"])
-    
+    # Search for EACH state separately for real data
     search_results = []
-    for query in search_queries[:4]:
-        results = ps(query)
-        if results.get("results"): search_results.extend(results["results"][:3])
-    
-    real_links = []
     price_data = []
-    for r in search_results:
-        title = r.get("title", "")
-        url = r.get("url", "")
-        snippet = r.get("snippet", "") or r.get("description", "")
-        if url and title: real_links.append(f"• [{title}]({url})")
-        if snippet and any(kw in snippet.lower() for kw in ["$", "cost", "fee", "rate", "price"]):
-            price_data.append(f"- {title}: {snippet[:150]}")
+    real_links = []
+    all_contacts = []
     
-    links_text = "\n".join(real_links[:10]) if real_links else "No additional links found."
-    price_text = "\n".join(price_data[:5]) if price_data else "No specific price data found."
+    for state in states_list if states_list else [cs]:
+        queries = [
+            f"{state} film permit cost fees 2025",
+            f"{state} film crew day rates 2025",
+            f"{state} film commission contact email phone",
+            f"{state} production services vendors",
+        ]
+        for query in queries:
+            results = ps(query)
+            if results.get("results"):
+                for r in results["results"][:3]:
+                    search_results.append(r)
+                    title = r.get("title", "")
+                    url = r.get("url", "")
+                    snippet = r.get("snippet", "") or r.get("description", "")
+                    if url and title: real_links.append(f"• [{title}]({url})")
+                    if snippet and any(kw in snippet.lower() for kw in ["$", "cost", "fee", "rate", "price"]):
+                        price_data.append(f"- {title}: {snippet[:150]}")
+        
+        # Extract contacts for this state
+        state_contacts = extract_contacts(state)
+        all_contacts.extend(state_contacts[:3])
+    
+    links_text = "\n".join(real_links[:15]) if real_links else "No additional links found."
+    price_text = "\n".join(price_data[:8]) if price_data else "No specific price data found."
+    contacts_text = "\n".join(all_contacts[:10]) if all_contacts else "Contact local film commission."
     
     all_nums = [int(n.replace(',', '')) for n in re.findall(r'\b(\d{1,3}(?:,\d{3})*)\b', msg_lower)]
     crew_size = extras = budget = 0
