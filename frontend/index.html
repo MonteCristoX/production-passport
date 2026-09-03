@@ -250,17 +250,16 @@
         }
 
         function formatAssistantContent(content) {
-            // Always render markdown to HTML
-            const htmlContent = inlineMarkdown(content);
+            // Check if it looks like a full report (has multiple sections)
+            const hasMultipleSections = (content.match(/#{2,3}\s/g) || []).length >= 3;
+            const hasReportKeywords = /Film Production Report|Executive Summary|Permits & Costs|Final Recommendation|SAG-AFTRA|Insurance Breakdown|Next Steps/i.test(content);
             
-            // Check if it looks like a full report
-            const looksLikeReport = /Film Production Report|Executive Summary|Permits & Costs|Final Recommendation/i.test(content);
-            
-            if (looksLikeReport) {
+            if (hasMultipleSections || hasReportKeywords) {
                 return formatReport(content);
             }
             
-            // For shorter responses, still render as formatted HTML
+            // For shorter responses, render as formatted HTML
+            const htmlContent = inlineMarkdown(content);
             return `<div class="text-slate-200 leading-relaxed">${htmlContent.replace(/\n/g, '<br>')}</div>`;
         }
 
@@ -288,12 +287,11 @@
                 const trimmed = line.trim();
                 if (!trimmed) return;
                 
-                if (trimmed.startsWith('###')) {
+                // Match ## or ### headers (with optional numbers)
+                const headerMatch = trimmed.match(/^#{2,3}\s+(.+)$/);
+                if (headerMatch) {
                     if (current) sections.push(current);
-                    current = { title: trimmed.replace(/^###\s*/, ''), lines: [] };
-                } else if (trimmed.startsWith('##')) {
-                    if (current) sections.push(current);
-                    current = { title: trimmed.replace(/^##\s*/, ''), lines: [] };
+                    current = { title: headerMatch[1].replace(/^\d+\.?\s*/, ''), lines: [] };
                 } else if (current) {
                     current.lines.push(trimmed);
                 }
@@ -301,7 +299,8 @@
             if (current) sections.push(current);
 
             if (!sections.length) {
-                return `<div class="space-y-4"><div class="text-slate-200">${inlineMarkdown(content).replace(/\n/g, '<br>')}</div></div>`;
+                // No sections found, render as plain markdown
+                return `<div class="space-y-2"><div class="text-slate-200 leading-relaxed">${inlineMarkdown(content).replace(/\n/g, '<br>')}</div></div>`;
             }
 
             return `<div class="space-y-4">${sections.map(renderReportSection).join('')}</div>`;
