@@ -56,6 +56,7 @@ def get_country_contacts(country):
                           "", "• **SAG-AFTRA**", "  📧 info@sagaftra.org", "  🌐 [sagaftra.org](https://www.sagaftra.org/)"],
         "California": ["• **FilmLA (Los Angeles)**", "  📧 info@filmla.com", "  📞 (213) 977-8600", "  🌐 [filmla.com](https://www.filmla.com/)",
                        "", "• **CA Film Commission**", "  📧 info@film.ca.gov", "  🌐 [film.ca.gov](https://www.film.ca.gov/)"],
+        "New York": ["• **Governor's Office for Motion Picture & TV**", "  📧 info@ny.gov", "  🌐 [esd.ny.gov](https://esd.ny.gov/industries/film-and-television)"],
         "Colombia": ["• **ProColombia Film**", "  📧 film@procolombia.co", "  🌐 [procolombia.co](https://www.procolombia.co/en/industries/creative-industries/film)"],
         "Spain": ["• **Spain Film Commission**", "  📧 info@spainfilmcommission.com", "  🌐 [spainfilmcommission.com](https://www.spainfilmcommission.com/)"],
         "Japan": ["• **Japan Film Commission**", "  📧 info@japanfc.jp", "  🌐 [japanfc.jp](https://www.japanfc.jp/eng/)"],
@@ -72,6 +73,8 @@ def get_country_vendors(country):
                           "• [SAG-AFTRA](https://www.sagaftra.org/) — Union", "• [FilmLA](https://www.filmla.com/) — LA permits"],
         "California": ["• [FilmLA](https://www.filmla.com/) — LA permits", "• [CA Film Commission](https://www.film.ca.gov/) — Incentives",
                        "• [SAG-AFTRA](https://www.sagaftra.org/) — Union"],
+        "New York": ["• [NY Governor's Office](https://esd.ny.gov/industries/film-and-television) — State incentives",
+                     "• [MOME](https://www.nyc.gov/site/mome/index.page) — NYC permits"],
         "Colombia": ["• [ProColombia Film](https://www.procolombia.co/en/industries/creative-industries/film) — Film commission"],
         "Spain": ["• [Spain Film Commission](https://www.spainfilmcommission.com/) — Locations"],
         "Japan": ["• [Japan Film Commission](https://www.japanfc.jp/eng/) — Production"],
@@ -82,36 +85,29 @@ def get_country_vendors(country):
 def extract_contacts(country, state=None):
     contacts = []
     queries = []
-    if state:
-        queries.extend([f"{state} film commission contact email phone", f"{state} film permit office contact 2025"])
-    if country:
-        queries.extend([f"{country} film commission contact email phone", f"{country} film permit office contact"])
+    if state: queries.extend([f"{state} film commission contact email phone", f"{state} film permit office contact 2025"])
+    if country: queries.extend([f"{country} film commission contact email phone", f"{country} film permit office contact"])
     
     search_results = []
     for query in queries[:4]:
         results = ps(query)
-        if results.get("results"):
-            search_results.extend(results["results"][:3])
+        if results.get("results"): search_results.extend(results["results"][:3])
     
     for r in search_results:
         title = r.get("title", "")
         url = r.get("url", "")
         snippet = r.get("snippet", "") or r.get("description", "")
         if not url or not title: continue
-        
         email_match = re.search(r'[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}', snippet)
         email = email_match.group(0) if email_match else None
         phone_match = re.search(r'(?:\+?\d{1,3}[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}', snippet)
         phone = phone_match.group(0) if phone_match else None
-        
         if email or phone or 'film commission' in title.lower():
             entry = f"• **{title}**"
             if email: entry += f"\n  📧 {email}"
             if phone: entry += f"\n  📞 {phone}"
             entry += f"\n  🌐 [{url}]({url})"
-            if not any(c.startswith(entry[:50]) for c in contacts):
-                contacts.append(entry)
-    
+            if not any(c.startswith(entry[:50]) for c in contacts): contacts.append(entry)
     return contacts[:8]
 
 def generate_live_report(message):
@@ -130,15 +126,13 @@ def generate_live_report(message):
             if "united states" in geo.get("country", "").lower():
                 countries.append("United States")
                 found_state = geo.get("state")
-            elif geo.get("country"):
-                countries.append(geo["country"])
+            elif geo.get("country"): countries.append(geo["country"])
     
     country_keywords = {"united states": "United States", "usa": "United States", "mexico": "Mexico", 
                        "colombia": "Colombia", "spain": "Spain", "japan": "Japan", "uk": "United Kingdom",
                        "france": "France", "germany": "Germany", "brazil": "Brazil", "canada": "Canada", "costa rica": "Costa Rica"}
     for kw, country in country_keywords.items():
-        if kw in msg_lower and country not in countries:
-            countries.append(country)
+        if kw in msg_lower and country not in countries: countries.append(country)
     
     state_keywords = {"california": "California", "new york": "New York", "georgia": "Georgia",
                      "louisiana": "Louisiana", "texas": "Texas", "florida": "Florida"}
@@ -146,14 +140,12 @@ def generate_live_report(message):
     for kw, state in state_keywords.items():
         if kw in msg_lower:
             found_states.append(state)
-            if "United States" not in countries:
-                countries.append("United States")
+            if "United States" not in countries: countries.append("United States")
     found_state = ", ".join(found_states) if found_states else None
     
-    cs = ", ".join(countries) if countries else "the specified location"
+    cs = ", ".join(countries)
     st = found_state or ""
     
-    # Search for prices
     search_queries = []
     if st: search_queries.extend([f"{st} film permit cost fees 2025", f"{st} film crew day rates 2025"])
     if countries: search_queries.extend([f"{cs} film permit costs 2025", f"{cs} film insurance rates"])
@@ -161,8 +153,7 @@ def generate_live_report(message):
     search_results = []
     for query in search_queries[:4]:
         results = ps(query)
-        if results.get("results"):
-            search_results.extend(results["results"][:3])
+        if results.get("results"): search_results.extend(results["results"][:3])
     
     real_links = []
     price_data = []
@@ -177,7 +168,6 @@ def generate_live_report(message):
     links_text = "\n".join(real_links[:10]) if real_links else "No additional links found."
     price_text = "\n".join(price_data[:5]) if price_data else "No specific price data found."
     
-    # Extract numbers
     all_nums = [int(n.replace(',', '')) for n in re.findall(r'\b(\d{1,3}(?:,\d{3})*)\b', msg_lower)]
     crew_size = extras = budget = 0
     for num in all_nums:
@@ -189,8 +179,7 @@ def generate_live_report(message):
     if crew_size == 0 and len(all_nums) >= 2:
         crew_size = all_nums[0]
         if len(all_nums) >= 3: budget = all_nums[2]
-    elif crew_size == 0 and len(all_nums) == 1:
-        crew_size = all_nums[0]
+    elif crew_size == 0 and len(all_nums) == 1: crew_size = all_nums[0]
     
     drones = any(w in msg_lower for w in ["drone", "drones", "uav", "quadcopter"])
     scene_type = "aerial" if drones else "urban"
@@ -198,7 +187,6 @@ def generate_live_report(message):
     contacts = extract_contacts(cs, st)
     contacts_text = "\n".join(contacts) if contacts else "Contact local film commission."
     
-    # Search for updated requirements
     verification_queries = []
     if st: verification_queries.extend([f"{st} drone regulations filming 2025", f"{st} film permit changes 2025"])
     if countries: verification_queries.extend([f"{cs} drone laws filming 2025", f"{cs} film regulations updated"])
@@ -211,8 +199,7 @@ def generate_live_report(message):
                 title = r.get("title", "")
                 snippet = r.get("snippet", "") or r.get("description", "")
                 url = r.get("url", "")
-                if title and snippet:
-                    verification_results.append(f"- [{title}]({url}): {snippet[:200]}")
+                if title and snippet: verification_results.append(f"- [{title}]({url}): {snippet[:200]}")
     
     verification_text = "\n".join(verification_results[:6]) if verification_results else "No recent updates found. Verify with local authorities."
     
@@ -271,15 +258,13 @@ def generate_demo_report(message):
             if "united states" in geo.get("country", "").lower():
                 countries.append("United States")
                 found_state = geo.get("state")
-            elif geo.get("country"):
-                countries.append(geo["country"])
+            elif geo.get("country"): countries.append(geo["country"])
     
     country_keywords = {"united states": "United States", "usa": "United States", "mexico": "Mexico", 
                        "colombia": "Colombia", "spain": "Spain", "japan": "Japan", "uk": "United Kingdom",
                        "france": "France", "germany": "Germany", "brazil": "Brazil", "canada": "Canada", "costa rica": "Costa Rica"}
     for kw, country in country_keywords.items():
-        if kw in msg_lower and country not in countries:
-            countries.append(country)
+        if kw in msg_lower and country not in countries: countries.append(country)
     
     state_keywords = {"california": "California", "new york": "New York", "georgia": "Georgia",
                      "louisiana": "Louisiana", "texas": "Texas", "florida": "Florida"}
@@ -287,8 +272,7 @@ def generate_demo_report(message):
     for kw, state in state_keywords.items():
         if kw in msg_lower:
             found_states.append(state)
-            if "United States" not in countries:
-                countries.append("United States")
+            if "United States" not in countries: countries.append("United States")
     found_state = ", ".join(found_states) if found_states else None
     
     if not countries:
@@ -305,8 +289,7 @@ def generate_demo_report(message):
     if crew_size == 0 and len(all_nums) >= 2:
         crew_size = all_nums[0]
         if len(all_nums) >= 3: budget = all_nums[2]
-    elif crew_size == 0 and len(all_nums) == 1:
-        crew_size = all_nums[0]
+    elif crew_size == 0 and len(all_nums) == 1: crew_size = all_nums[0]
     
     drones = any(w in msg_lower for w in ["drone", "drones", "uav", "quadcopter"])
     scene_type = "aerial" if drones else "urban"
@@ -321,12 +304,22 @@ def generate_demo_report(message):
         loc_info += f"\n   📍 Coordinates: {location['lat']}, {location['lng']}"
         loc_info += f"\n   🗺️ Google Maps: https://www.google.com/maps?q={location['lat']},{location['lng']}"
     
+    # Build comparison section for multiple locations
+    comparison_section = ""
+    states_list = [s.strip() for s in found_state.split(", ") if s.strip()] if found_state else []
+    if len(states_list) >= 2:
+        comparison_section = "\n\n### Location Comparison\n"
+        for state in states_list:
+            comparison_section += f"\n**{state}:**\n"
+            comparison_section += f"  • Contact state film commission for permits and incentives\n"
+            comparison_section += f"  • Verify local regulations and union requirements\n"
+    
     return f"""## Film Production Report
 Generated: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
 
 ### 1. Executive Summary
-Production for **{cs}**{loc_str} ({scene_type} location) with **{extras}** extras, **{crew_size}** crew.
-Budget: **${budget:,}**. Key challenges: permits, crew, compliance, insurance.{loc_info}
+Production comparison for **{cs}**{loc_str} ({scene_type} locations) with **{extras}** extras, **{crew_size}** crew.
+Budget: **${budget:,}**.{comparison_section}{loc_info}
 
 ### 2. Country Analysis
 **{cs}**
