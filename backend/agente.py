@@ -245,6 +245,9 @@ Budget: **${budget:,}**. Key challenges: permits, crew, compliance, insurance.{l
 ### 6. Final Recommendation
 Proceed with **{cs}** — contact local production services for permits, hiring, and compliance. Budget **$6,000 – $12,000/day** all-in. Start permit process **minimum 4 weeks before shoot**.
 
+### 7. References & Links
+{get_country_vendors(cs)}
+
 ---
 {mode_footer}
 """
