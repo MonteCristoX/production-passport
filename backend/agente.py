@@ -302,6 +302,34 @@ def generate_live_report(message):
     contacts_text = "
 ".join(contacts) if contacts else "No specific contacts found. Contact local film commission."
     
+    # 5b. Search for updated requirements (drones, permits, regulations)
+    verification_queries = []
+    if st:
+        verification_queries.extend([
+            f"{st} drone regulations filming 2025 2026",
+            f"{st} film permit requirements changes 2025",
+        ])
+    if country:
+        verification_queries.extend([
+            f"{country} drone laws filming 2025 2026",
+            f"{country} film production permit requirements updated",
+            f"{country} film commission regulations changes 2025",
+        ])
+    
+    verification_results = []
+    for query in verification_queries[:4]:
+        results = ps(query)
+        if results.get("results"):
+            for r in results["results"][:2]:
+                title = r.get("title", "")
+                snippet = r.get("snippet", "") or r.get("description", "")
+                url = r.get("url", "")
+                if title and snippet:
+                    verification_results.append(f"- [{title}]({url}): {snippet[:200]}")
+    
+    verification_text = "
+".join(verification_results[:6]) if verification_results else "No recent updates found. Always verify directly with local authorities."
+    
     # 6. Generate report with real data
     prompt = f"""Write a comprehensive film production report based on real search data.
 
@@ -319,6 +347,9 @@ REAL PRICE DATA FROM WEB SEARCH:
 REAL CONTACTS FOUND:
 {contacts_text}
 
+REQUIREMENTS VERIFICATION DATA:
+{verification_text}
+
 REAL SOURCE LINKS:
 {links_text}
 
@@ -329,7 +360,8 @@ Write a detailed report with these sections:
 4. Insurance Requirements (mention real rates if found)
 5. Actionable Checklist
 6. Key Contacts (use the real contacts found above with emails and phones)
-7. References & Links (use ONLY URLs from search results above)
+7. Requirements Verification (use the verification data above to confirm current regulations)
+8. References & Links (use ONLY URLs from search results above)
 
 IMPORTANT: 
 - Use real data from search results where available
@@ -485,7 +517,15 @@ Budget: **${budget:,}**. Key challenges: permits, crew, compliance, insurance.{l
 - Third-party injury coverage
 - Property damage coverage
 
-### 5. Actionable Checklist
+### 5. Requirements Verification
+
+**⚠️ IMPORTANT:** Regulations change frequently. Always verify directly with local authorities:
+- Contact the local film commission for current permit requirements
+- Confirm drone regulations with civil aviation authority
+- Verify if any new tax incentives or restrictions have been enacted
+- Check for any recent changes to labor laws affecting crew
+
+### 6. Actionable Checklist
 
 **Pre-Production:**
 - [ ] Contact local film commission for permit requirements
@@ -499,13 +539,13 @@ Budget: **${budget:,}**. Key challenges: permits, crew, compliance, insurance.{l
 - [ ] Rent production vehicles (cube truck, passenger van, trailer)
 - [ ] Verify nearest hospital with ER and foreign language support
 
-### 6. Final Recommendation
+### 7. Final Recommendation
 Proceed with **{cs}** — contact local production services for permits, hiring, and compliance. Budget **$6,000 – $12,000/day** all-in. Start permit process **minimum 4 weeks before shoot**.
 
-### 7. Key Contacts
+### 8. Key Contacts
 {get_country_contacts(cs)}
 
-### 8. References & Links
+### 9. References & Links
 {get_country_vendors(cs)}
 
 ---
