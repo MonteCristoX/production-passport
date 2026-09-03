@@ -127,6 +127,10 @@ def generate_report(message):
         loc_info += f"\n   📍 Coordinates: {location['lat']}, {location['lng']}"
         loc_info += f"\n   🗺️ Google Maps: https://www.google.com/maps?q={location['lat']},{location['lng']}"
     
+    # Determine mode footer
+    has_apis = bool(get_key("GEMINI_API_KEY")) and bool(get_key("PARALLEL_API_KEY"))
+    mode_footer = "*Report generated in **LIVE MODE** with real-time API research.*" if has_apis else "*Report generated in **DEMO MODE**. For live research, configure API keys and switch to Live mode.*"
+
     return f"""## Film Production Report
 Generated: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
 
@@ -196,7 +200,7 @@ Budget: **${budget:,}**. Key challenges: permits, crew, compliance, insurance.{l
 Proceed with **{cs}** — contact local production services for permits, hiring, and compliance. Budget **$6,000 – $12,000/day** all-in. Start permit process **minimum 4 weeks before shoot**.
 
 ---
-*Demo mode — connect APIs for live research and real-time data.*
+{mode_footer}
 """
 
 def generate_docx(text):
