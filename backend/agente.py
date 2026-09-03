@@ -23,15 +23,18 @@ def ps(q):
 def gm(prompt, retries=2):
     k = get_key("GEMINI_API_KEY")
     if not k: return "Error: GEMINI_API_KEY not configured"
-    for model in ["gemini-3.6-flash", "gemini-3.5-flash", "gemini-3-pro-image-preview"]:
+    headers = {"Content-Type": "application/json", "User-Agent": "Mozilla/5.0"}
+    for model in ["gemini-3.6-flash", "gemini-3.5-flash"]:
         for attempt in range(retries):
             try:
                 r = requests.post(f"https://generativelanguage.googleapis.com/v1/models/{model}:generateContent",
                     json={"contents": [{"parts": [{"text": prompt}]}], "generationConfig": {"temperature": 0.5, "maxOutputTokens": 8192}},
-                    params={"key": k}, timeout=60)
+                    params={"key": k}, headers=headers, timeout=15)
                 if r.status_code == 200: return r.json()["candidates"][0]["content"]["parts"][0]["text"]
                 elif r.status_code == 404: break
-                elif r.status_code == 429: import time; time.sleep(15 * (attempt + 1)); continue
+                elif r.status_code == 429: import time; time.sleep(5); continue
+            except requests.exceptions.Timeout:
+                continue
             except: break
     return "Error: Gemini API failed"
 
