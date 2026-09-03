@@ -593,7 +593,8 @@ Budget: ${data['budget_usd']:,}. Key challenges: permits, crew, compliance, insu
 ├── Unions: {si['unions']}
 ├── Show Stoppers: {si['showstoppers']}
 ├── Hotels: {si['hotels']}
-└── Hospitals: {si['hospitals']}
+├── Hospitals: {si['hospitals']}
+└── Film Office Links: [FilmLA](https://www.filmla.com/) | [CA Film Commission](https://www.film.ca.gov/) | [Beverly Hills](https://www.beverlyhills.org/departments/filming/)
 """
     
     # Budget Estimate
@@ -649,14 +650,14 @@ Budget: ${data['budget_usd']:,}. Key challenges: permits, crew, compliance, insu
 └── TOTAL DAILY INSURANCE: ${ins['total']}
 
 Recommended Providers:
-  • Film Emissary (US film production)
-  • AIG Entertainment (Global)
-  • Hiscox (International)
-  • Allianz Global (International)
-  • Lloyd's of London (High-value)
-  • Wrapbook (Payroll + Insurance)
-  • Kelly Insurance Group (Entertainment)
-  • Front Row Insurance (Production)
+  • [Film Emissary](https://www.filmemissary.com/) (US film production)
+  • [AIG Entertainment](https://www.aig.com/business/entertainment) (Global)
+  • [Hiscox](https://www.hiscox.com/small-business/film-entertainment) (International)
+  • [Allianz Global](https://www.allianz.com/en/offerings/entertainment.html) (International)
+  • [Lloyd's of London](https://www.lloyds.com/) (High-value)
+  • [Wrapbook](https://www.wrapbook.com/) (Payroll + Insurance)
+  • [Kelly Insurance Group](https://www.kellyinsurancegroup.com/) (Entertainment)
+  • [Front Row Insurance](https://www.frontrowinsurance.com/) (Production)
 """
 
     # Parking & Logistics
@@ -698,81 +699,7 @@ Recommended Providers:
 8. Verify nearest hospital with ER + foreign language support
 """
     
-    # Referencias específicas (solo las mencionadas)
-    links = []
-    text_lower = report.lower()
-    
-    # Seguros mencionados
-    if 'film emissary' in text_lower:
-        links.append('• Film Emissary (Insurance): https://www.filmemissary.com/')
-    if 'wrapbook' in text_lower:
-        links.append('• Wrapbook (Payroll + Insurance): https://www.wrapbook.com/')
-    if 'aig' in text_lower or 'aig entertainment' in text_lower:
-        links.append('• AIG Entertainment: https://www.aig.com/business/entertainment')
-    if 'hiscox' in text_lower:
-        links.append('• Hiscox Film Insurance: https://www.hiscox.com/small-business/film-entertainment')
-    if 'allianz' in text_lower:
-        links.append('• Allianz Global: https://www.allianz.com/en/offerings/entertainment.html')
-    if 'lloyd' in text_lower:
-        links.append("• Lloyd's of London: https://www.lloyds.com/")
-    if 'kelly insurance' in text_lower:
-        links.append('• Kelly Insurance Group: https://www.kellyinsurancegroup.com/')
-    if 'front row' in text_lower:
-        links.append('• Front Row Insurance: https://www.frontrowinsurance.com/')
-    
-    # Film offices mencionados
-    if 'filmla' in text_lower:
-        links.append('• FilmLA: https://www.filmla.com/')
-    if 'beverly hills' in text_lower:
-        links.append('• Beverly Hills Film Office: https://www.beverlyhills.org/departments/filming/')
-    if 'santa monica' in text_lower:
-        links.append('• Santa Monica Film Office: https://www.santamonica.com/business/film-office/')
-    if 'west hollywood' in text_lower:
-        links.append('• West Hollywood Film Office: https://www.weho.org/city-government/film-office')
-    if 'culver city' in text_lower:
-        links.append('• Culver City Film Office: https://www.culvercity.org/Government/Film-Office')
-    if 'pasadena' in text_lower:
-        links.append('• Pasadena Film Office: https://www.cityofpasadena.net/film-office/')
-    if 'california film commission' in text_lower or 'ca film' in text_lower:
-        links.append('• California Film Commission: https://www.film.ca.gov/')
-    if 'georgia film' in text_lower:
-        links.append('• Georgia Film Office: https://www.georgia.org/industries/film-entertainment')
-    if 'louisiana' in text_lower:
-        links.append('• Louisiana Entertainment: https://www.louisianaentertainment.gov/')
-    if 'new mexico' in text_lower:
-        links.append('• New Mexico Film Office: https://nmfilm.com/')
-    if 'new york' in text_lower or 'mome' in text_lower:
-        links.append('• NY Mayor\'s Office (MOME): https://www.nyc.gov/site/mome/index.page')
-    
-    # SAG-AFTRA
-    if 'sag-aftra' in text_lower or 'sag aftra' in text_lower:
-        links.append('• SAG-AFTRA Rates 2025-2026: https://www.sagaftra.org/contracts-industry-resources/background-performers/rates')
-        links.append('• SAG-AFTRA Production Center: https://www.sagaftra.org/production-center')
-    
-    # Proveedores Mexico
-    if '80 days' in text_lower:
-        links.append('• 80 Days Films (Mexico): https://80daysfilms.com/')
-    if 'story' in text_lower and 'mx' in text_lower:
-        links.append('• Story Productions (Mexico): https://story.mx/')
-    if 'weproduce' in text_lower or 'we produce' in text_lower:
-        links.append('• We Produce (Mexico): https://weproduce.mx/')
-    if 'mexico film' in text_lower:
-        links.append('• Mexico Film Commission: https://www.filmcommission.gob.mx/')
-    
-    # Otros países
-    if 'colombia' in text_lower:
-        links.append('• Colombia Film Commission: https://www.procolombia.co/en/industries/creative-industries/film')
-    if 'spain' in text_lower:
-        links.append('• Spain Film Commission: https://www.spainfilmcommission.com/')
-    if 'japan' in text_lower:
-        links.append('• Japan Film Commission: https://www.japanfc.jp/eng/')
-    if 'united kingdom' in text_lower or 'uk' in text_lower:
-        links.append('• British Film Commission: https://britishfilmcommission.org.uk/')
-    
-    if links:
-        report += "\n### 9. References & Links\n"
-        report += "\n".join(links)
-        report += "\n"
+
     
     return report
 
