@@ -189,11 +189,7 @@
                             <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
                             Download report
                         </button>
-                        <button onclick="saveToGoogleDrive('${btoa(unescape(encodeURIComponent(content)))}', this)" class="report-download report-drive">
-                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3l4.5 7.8M7.5 10.8L12 3m-4.5 7.8L3 18.6m4.5-7.8h9m0 0l4.5 7.8m-18 0h18m-13.5 0L12 10.8l4.5 7.8"/></svg>
-                            Save to Google Drive
-                        </button>
-                        <span class="drive-result hidden" aria-live="polite"></span>
+
                     </div>` : ''}
                 </div>
             `;
@@ -371,41 +367,6 @@
                 window.URL.revokeObjectURL(url);
             } catch (err) {
                 alert('Error downloading document');
-            }
-        }
-
-        async function saveToGoogleDrive(base64Content, button) {
-            const content = decodeURIComponent(escape(atob(base64Content)));
-            const result = button.parentElement.querySelector('.drive-result');
-            const originalLabel = button.innerHTML;
-            button.disabled = true;
-            button.innerHTML = '<span>Saving to Drive…</span>';
-            result.classList.add('hidden');
-            result.classList.remove('drive-result-error');
-
-            try {
-                const response = await fetch('/api/save-to-drive', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ report: content })
-                });
-                const data = await response.json();
-                if (!response.ok || !data.success) {
-                    throw new Error(data.error || 'Could not save the report');
-                }
-
-                const file = data.file || {};
-                result.innerHTML = file.webViewLink
-                    ? `Saved · <a class="underline underline-offset-2" href="${escapeHtml(file.webViewLink)}" target="_blank" rel="noopener noreferrer">Open in Drive</a>`
-                    : 'Saved to Google Drive';
-                result.classList.remove('hidden');
-            } catch (error) {
-                result.textContent = error.message || 'Could not save to Google Drive';
-                result.classList.add('drive-result-error');
-                result.classList.remove('hidden');
-            } finally {
-                button.disabled = false;
-                button.innerHTML = originalLabel;
             }
         }
 

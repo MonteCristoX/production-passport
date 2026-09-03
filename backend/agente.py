@@ -485,42 +485,6 @@ def create_app():
         except Exception as e:
             return jsonify({"success": False, "error": str(e)}), 500
     
-    @app.route("/api/save-to-drive", methods=["POST"])
-    def save_to_drive():
-        """Save report to Google Drive using Google Apps Script webhook."""
-        data = request.json
-        report_text = data.get("report", "")
-        if not report_text: return jsonify({"success": False, "error": "No report"}), 400
-        
-        try:
-            # Generate DOCX
-            docx_bytes = generate_docx(report_text)
-            
-            # Google Apps Script webhook URL (user must configure this)
-            drive_webhook_url = os.environ.get("GOOGLE_DRIVE_WEBHOOK_URL", "")
-            
-            if not drive_webhook_url:
-                return jsonify({"success": False, "error": "Google Drive not configured. Set GOOGLE_DRIVE_WEBHOOK_URL in Replit Secrets."}), 400
-            
-            # Send to Google Apps Script
-            import base64
-            encoded = base64.b64encode(docx_bytes).decode('utf-8')
-            
-            response = requests.post(drive_webhook_url, json={
-                "fileName": f"production-passport-report-{datetime.now().strftime('%Y%m%d-%H%M%S')}.docx",
-                "content": encoded,
-                "mimeType": "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-            }, timeout=30)
-            
-            if response.status_code == 200:
-                result = response.json()
-                return jsonify({"success": True, "file": result.get("file", {})})
-            else:
-                return jsonify({"success": False, "error": f"Drive upload failed: {response.status_code}"}), 500
-                
-        except Exception as e:
-            return jsonify({"success": False, "error": str(e)}), 500
-    
     @app.route("/api/health", methods=["GET"])
     def health():
         return jsonify({"status": "ok", "mode": "live" if get_key("GEMINI_API_KEY") else "demo"})
