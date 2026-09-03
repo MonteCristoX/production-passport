@@ -685,7 +685,7 @@ Recommended Providers:
 └── Meal Penalty (after): ${catering['meal_penalty_subsequent']}
 """
 
-    # Next Steps
+    # Next Steps con enlaces reales
     report += f"""
 ### 8. Next Steps & Contacts
 1. Contact local film office for specific permit requirements
@@ -696,6 +696,67 @@ Recommended Providers:
 6. Coordinate SAG-AFTRA casting if using union actors
 7. Arrange catering (dietary restrictions, meal timing)
 8. Verify nearest hospital with ER + foreign language support
+"""
+    
+    # Referencias útiles
+    report += """
+### 9. Useful Links & References
+  • SAG-AFTRA Rates 2025-2026: https://www.sagaftra.org/contracts-industry-resources/background-performers/rates
+  • FilmLA (LA City Permits): https://www.filmla.com/
+  • Beverly Hills Film Office: https://www.beverlyhills.org/departments/filming/
+  • California Film Commission: https://www.film.ca.gov/
+  • Film Emissary (Insurance): https://www.filmemissary.com/
+  • Wrapbook (Payroll + Insurance): https://www.wrapbook.com/
+  • AIG Entertainment: https://www.aig.com/business/entertainment
+  • Hiscox Film Insurance: https://www.hiscox.com/small-business/film-entertainment
+  • Allianz Global Entertainment: https://www.allianz.com/en/offerings/entertainment.html
+  • 80 Days Films (Mexico): https://80daysfilms.com/
+  • Story Productions (Mexico): https://story.mx/
+  • We Produce (Mexico): https://weproduce.mx/
+  • Mexico Film Commission: https://www.filmcommission.gob.mx/
+  • Colombia Film Commission: https://www.procolombia.co/en/industries/creative-industries/film
+  • Spain Film Commission: https://www.spainfilmcommission.com/
+  • Japan Film Commission: https://www.japanfc.jp/eng/
+  • British Film Commission: https://britishfilmcommission.org.uk/
+  • Cineuropa (European Funding): https://cineuropa.org/
+  • Production Weekly: https://www.productionweekly.com/
+  • Studio System (Industry Data): https://www.studiosystem.com/
+  • Entertainment Partners: https://www.ep.com/
+  • Film Independent (Grants): https://www.filmindependent.org/
+  • Movie Permits (State-by-State): https://www.moviepermits.com/
+  • ProductionHUB (Crew & Vendors): https://www.productionhub.com/
+  • Mandy (Crew Finder): https://www.mandy.com/
+  • StaffMeUp (Crew Jobs): https://www.staffmeup.com/
+  • ProductionBeast (Vendor Directory): https://www.productionbeast.com/
+  • FilmEquipmentPost.com: https://www.filmequipmentpost.com/
+  • ShareGrid (Equipment Rental): https://www.sharegrid.com/
+  • KitSplit (Gear Rental): https://www.kitsplit.com/
+  • Peerspace (Location Rentals): https://www.peerspace.com/
+  • Giggster (Film Locations): https://www.giggster.com/
+  • Set Scouter (Locations): https://www.setscouter.com/
+  • FilmTrack (Rights Management): https://www.filmtrack.com/
+  • Movie Magic Scheduling: https://www.entertainmentpartners.com/software/magic-scheduling/
+  • Movie Magic Budgeting: https://www.entertainmentpartners.com/software/magic-budgeting/
+  • Final Draft (Screenwriting): https://www.finaldraft.com/
+  • StudioBinder (Production Mgmt): https://www.studiobinder.com/
+  • Yamdu (Production Software): https://www.yamdu.com/
+  • Celtx (Pre-Production): https://www.celtx.com/
+  • ShotPro (Storyboarding): https://www.shotpro.com/
+  • Cadrage (Shot Listing): https://cadrage.com/
+  • SetLife (Production Apps): https://getsetlife.com/
+  • Filmustage (Script Breakdown): https://www.filmustage.com/
+  • Yamdu: https://www.yamdu.com/
+  • CoreSounX (Music Licensing): https://www.coresounx.com/
+  • Artlist (Music/SFX): https://artlist.io/
+  • Epidemic Sound: https://www.epidemicsound.com/
+  • Musicbed: https://www.musicbed.com/
+  • Soundstripe: https://www.soundstripe.com/
+  • Pond5 (Stock Footage): https://www.pond5.com/
+  • Storyblocks (Stock Video): https://www.storyblocks.com/
+  • Shutterstock: https://www.shutterstock.com/
+  • Getty Images: https://www.gettyimages.com/
+  • Dissolve (Premium Stock): https://dissolve.com/
+  • Filmsupply (Cinematic Stock): https://www.filmsupply.com/
 """
 
     return report
