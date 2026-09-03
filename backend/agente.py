@@ -150,14 +150,10 @@ def extract_production_info(message):
                 if geo.get("state"):
                     found_state = geo["state"]
             else:
-                # Add geocoded country for non-US locations
-                geo_country = geo.get("country", "").lower()
-                country_map = {"mexico": "Mexico", "colombia": "Colombia", "spain": "Spain", 
-                               "japan": "Japan", "united kingdom": "United Kingdom", "france": "France"}
-                for key, val in country_map.items():
-                    if key in geo_country:
-                        countries.append(val)
-                        break
+                # Add geocoded country directly from BigDataCloud (any country in the world)
+                geo_country = geo.get("country", "").strip()
+                if geo_country and geo_country not in countries:
+                    countries.append(geo_country)
                 if geo.get("state"): found_state = geo["state"]
     
     maps_match = re.search(r'(https?://(?:www\.)?google\.com/maps/[^\s]+)', message)
