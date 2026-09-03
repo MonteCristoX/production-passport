@@ -47,173 +47,79 @@ def reverse_geocode(lat, lng):
     return {"city": "", "neighborhood": "", "state": "", "country": "", "full": f"{lat}, {lng}"}
 
 def get_country_contacts(country):
-    """Get country-specific film commission contacts."""
     contacts = {
-        "Mexico": [
-            "• **Mexico Film Commission**",
-            "  📧 film@filmcommission.gob.mx",
-            "  🌐 [filmcommission.gob.mx](https://www.filmcommission.gob.mx/)",
-            "",
-            "• **Story Productions (Mexico City)**",
-            "  📧 info@story.mx",
-            "  🌐 [story.mx](https://story.mx/)",
-            "",
-            "• **80 Days Films**",
-            "  📧 info@80daysfilms.com",
-            "  🌐 [80daysfilms.com](https://80daysfilms.com/)",
-        ],
-        "United States": [
-            "• **FilmLA (Los Angeles)**",
-            "  📧 info@filmla.com",
-            "  📞 (213) 977-8600",
-            "  🌐 [filmla.com](https://www.filmla.com/)",
-            "",
-            "• **CA Film Commission**",
-            "  📧 info@film.ca.gov",
-            "  🌐 [film.ca.gov](https://www.film.ca.gov/)",
-            "",
-            "• **SAG-AFTRA**",
-            "  📧 info@sagaftra.org",
-            "  🌐 [sagaftra.org](https://www.sagaftra.org/)",
-        ],
-        "California": [
-            "• **FilmLA (Los Angeles)**",
-            "  📧 info@filmla.com",
-            "  📞 (213) 977-8600",
-            "  🌐 [filmla.com](https://www.filmla.com/)",
-            "",
-            "• **CA Film Commission**",
-            "  📧 info@film.ca.gov",
-            "  🌐 [film.ca.gov](https://www.film.ca.gov/)",
-        ],
-        "Colombia": [
-            "• **ProColombia Film**",
-            "  📧 film@procolombia.co",
-            "  🌐 [procolombia.co](https://www.procolombia.co/en/industries/creative-industries/film)",
-        ],
-        "Spain": [
-            "• **Spain Film Commission**",
-            "  📧 info@spainfilmcommission.com",
-            "  🌐 [spainfilmcommission.com](https://www.spainfilmcommission.com/)",
-        ],
-        "Japan": [
-            "• **Japan Film Commission**",
-            "  📧 info@japanfc.jp",
-            "  🌐 [japanfc.jp](https://www.japanfc.jp/eng/)",
-        ],
-        "United Kingdom": [
-            "• **British Film Commission**",
-            "  📧 info@britishfilmcommission.org.uk",
-            "  🌐 [britishfilmcommission.org.uk](https://britishfilmcommission.org.uk/)",
-        ],
+        "Mexico": ["• **Mexico Film Commission**", "  📧 film@filmcommission.gob.mx", "  🌐 [filmcommission.gob.mx](https://www.filmcommission.gob.mx/)",
+                   "", "• **Story Productions**", "  📧 info@story.mx", "  🌐 [story.mx](https://story.mx/)",
+                   "", "• **80 Days Films**", "  📧 info@80daysfilms.com", "  🌐 [80daysfilms.com](https://80daysfilms.com/)"],
+        "United States": ["• **FilmLA (Los Angeles)**", "  📧 info@filmla.com", "  📞 (213) 977-8600", "  🌐 [filmla.com](https://www.filmla.com/)",
+                          "", "• **CA Film Commission**", "  📧 info@film.ca.gov", "  🌐 [film.ca.gov](https://www.film.ca.gov/)",
+                          "", "• **SAG-AFTRA**", "  📧 info@sagaftra.org", "  🌐 [sagaftra.org](https://www.sagaftra.org/)"],
+        "California": ["• **FilmLA (Los Angeles)**", "  📧 info@filmla.com", "  📞 (213) 977-8600", "  🌐 [filmla.com](https://www.filmla.com/)",
+                       "", "• **CA Film Commission**", "  📧 info@film.ca.gov", "  🌐 [film.ca.gov](https://www.film.ca.gov/)"],
+        "Colombia": ["• **ProColombia Film**", "  📧 film@procolombia.co", "  🌐 [procolombia.co](https://www.procolombia.co/en/industries/creative-industries/film)"],
+        "Spain": ["• **Spain Film Commission**", "  📧 info@spainfilmcommission.com", "  🌐 [spainfilmcommission.com](https://www.spainfilmcommission.com/)"],
+        "Japan": ["• **Japan Film Commission**", "  📧 info@japanfc.jp", "  🌐 [japanfc.jp](https://www.japanfc.jp/eng/)"],
+        "United Kingdom": ["• **British Film Commission**", "  📧 info@britishfilmcommission.org.uk", "  🌐 [britishfilmcommission.org.uk](https://britishfilmcommission.org.uk/)"],
     }
-    return "
-".join(contacts.get(country, ["• Contact local film office for specific contacts"]))
+    return "\n".join(contacts.get(country, ["• Contact local film office for specific contacts"]))
 
 def get_country_vendors(country):
-    """Get country-specific vendor links."""
     vendors = {
-        "Mexico": [
-            "• [Story Productions](https://story.mx/) — Full service production",
-            "• [We Produce](https://weproduce.mx/) — Equipment & crew",
-            "• [80 Days Films](https://80daysfilms.com/) — International co-productions",
-            "• [Mexico Film Commission](https://www.filmcommission.gob.mx/) — Permits & locations",
-        ],
-        "United States": [
-            "• [Film Emissary](https://www.filmemissary.com/) — Insurance",
-            "• [Wrapbook](https://www.wrapbook.com/) — Payroll + Insurance",
-            "• [ShareGrid](https://www.sharegrid.com/) — Equipment rental",
-            "• [ProductionHUB](https://www.productionhub.com/) — Crew & vendors",
-            "• [SAG-AFTRA](https://www.sagaftra.org/) — Union resources",
-            "• [FilmLA](https://www.filmla.com/) — LA permits",
-        ],
-        "California": [
-            "• [FilmLA](https://www.filmla.com/) — LA City permits",
-            "• [CA Film Commission](https://www.film.ca.gov/) — State incentives",
-            "• [SAG-AFTRA](https://www.sagaftra.org/) — Union rates",
-        ],
-        "Colombia": [
-            "• [ProColombia Film](https://www.procolombia.co/en/industries/creative-industries/film) — Film commission",
-            "• [Cartagena Film Festival](https://www.cartagenafilmfestival.com/) — Festival info",
-        ],
-        "Spain": [
-            "• [Spain Film Commission](https://www.spainfilmcommission.com/) — Locations & permits",
-        ],
-        "Japan": [
-            "• [Japan Film Commission](https://www.japanfc.jp/eng/) — Production resources",
-        ],
-        "United Kingdom": [
-            "• [British Film Commission](https://britishfilmcommission.org.uk/) — UK production",
-        ],
+        "Mexico": ["• [Story Productions](https://story.mx/) — Full service", "• [We Produce](https://weproduce.mx/) — Equipment & crew",
+                   "• [80 Days Films](https://80daysfilms.com/) — Co-productions", "• [Mexico Film Commission](https://www.filmcommission.gob.mx/) — Permits"],
+        "United States": ["• [Film Emissary](https://www.filmemissary.com/) — Insurance", "• [Wrapbook](https://www.wrapbook.com/) — Payroll",
+                          "• [ShareGrid](https://www.sharegrid.com/) — Equipment", "• [ProductionHUB](https://www.productionhub.com/) — Crew",
+                          "• [SAG-AFTRA](https://www.sagaftra.org/) — Union", "• [FilmLA](https://www.filmla.com/) — LA permits"],
+        "California": ["• [FilmLA](https://www.filmla.com/) — LA permits", "• [CA Film Commission](https://www.film.ca.gov/) — Incentives",
+                       "• [SAG-AFTRA](https://www.sagaftra.org/) — Union"],
+        "Colombia": ["• [ProColombia Film](https://www.procolombia.co/en/industries/creative-industries/film) — Film commission"],
+        "Spain": ["• [Spain Film Commission](https://www.spainfilmcommission.com/) — Locations"],
+        "Japan": ["• [Japan Film Commission](https://www.japanfc.jp/eng/) — Production"],
+        "United Kingdom": ["• [British Film Commission](https://britishfilmcommission.org.uk/) — UK production"],
     }
     return "\n".join(vendors.get(country, ["• Contact local film office for vendor recommendations"]))
 
 def extract_contacts(country, state=None):
-    """Extract film commission and vendor contacts using Parallel API."""
     contacts = []
-    
-    # Build search queries
     queries = []
     if state:
-        queries.append(f"{state} film commission contact email phone office")
-        queries.append(f"{state} film permit office contact information 2025")
-        queries.append(f"{state} production services company contact email")
+        queries.extend([f"{state} film commission contact email phone", f"{state} film permit office contact 2025"])
     if country:
-        queries.append(f"{country} film commission contact email phone")
-        queries.append(f"{country} film permit office contact information")
-        queries.append(f"{country} production services film crew contact")
+        queries.extend([f"{country} film commission contact email phone", f"{country} film permit office contact"])
     
-    # Execute searches
     search_results = []
-    for query in queries[:4]:  # Limit to 4 queries
+    for query in queries[:4]:
         results = ps(query)
         if results.get("results"):
             search_results.extend(results["results"][:3])
     
-    # Extract contact information from snippets
     for r in search_results:
         title = r.get("title", "")
         url = r.get("url", "")
         snippet = r.get("snippet", "") or r.get("description", "")
+        if not url or not title: continue
         
-        if not url or not title:
-            continue
-        
-        # Extract email from snippet
         email_match = re.search(r'[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}', snippet)
         email = email_match.group(0) if email_match else None
-        
-        # Extract phone from snippet
         phone_match = re.search(r'(?:\+?\d{1,3}[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}', snippet)
         phone = phone_match.group(0) if phone_match else None
         
-        # Only add if we found contact info or it's a relevant org
-        if email or phone or 'film commission' in title.lower() or 'permit' in title.lower():
-            contact_entry = f"• **{title}**"
-            if email:
-                contact_entry += f"
-  📧 {email}"
-            if phone:
-                contact_entry += f"
-  📞 {phone}"
-            contact_entry += f"
-  🌐 [{url}]({url})"
-            
-            # Avoid duplicates
-            if not any(c.startswith(contact_entry[:50]) for c in contacts):
-                contacts.append(contact_entry)
+        if email or phone or 'film commission' in title.lower():
+            entry = f"• **{title}**"
+            if email: entry += f"\n  📧 {email}"
+            if phone: entry += f"\n  📞 {phone}"
+            entry += f"\n  🌐 [{url}]({url})"
+            if not any(c.startswith(entry[:50]) for c in contacts):
+                contacts.append(entry)
     
-    return contacts[:8]  # Return top 8 contacts
+    return contacts[:8]
 
 def generate_live_report(message):
-    """Generate report using live APIs with real-time price research."""
-    # 1. Detect location from message
     msg_lower = message.lower()
     countries = []
     location = None
     found_state = None
     
-    # Check coordinates
     coord_match = re.search(r'(-?\d+\.?\d*)\s*,\s*(-?\d+\.?\d*)', message)
     if coord_match:
         lat, lng = float(coord_match.group(1)), float(coord_match.group(2))
@@ -227,7 +133,6 @@ def generate_live_report(message):
             elif geo.get("country"):
                 countries.append(geo["country"])
     
-    # Check country keywords
     country_keywords = {"united states": "United States", "usa": "United States", "mexico": "Mexico", 
                        "colombia": "Colombia", "spain": "Spain", "japan": "Japan", "uk": "United Kingdom",
                        "france": "France", "germany": "Germany", "brazil": "Brazil", "canada": "Canada", "costa rica": "Costa Rica"}
@@ -235,86 +140,67 @@ def generate_live_report(message):
         if kw in msg_lower and country not in countries:
             countries.append(country)
     
+    state_keywords = {"california": "California", "new york": "New York", "georgia": "Georgia",
+                     "louisiana": "Louisiana", "texas": "Texas", "florida": "Florida"}
+    for kw, state in state_keywords.items():
+        if kw in msg_lower:
+            found_state = state
+            if "United States" not in countries:
+                countries.append("United States")
+            break
+    
     cs = ", ".join(countries) if countries else "the specified location"
     st = found_state or ""
     
-    # 2. Search for real prices based on location
+    # Search for prices
     search_queries = []
-    if st:
-        search_queries.extend([
-            f"{st} film permit cost fees 2025",
-            f"{st} film production crew day rates 2025",
-            f"{st} camera equipment rental prices",
-        ])
-    if countries:
-        search_queries.extend([
-            f"{cs} film permit requirements costs 2025",
-            f"{cs} film production insurance rates",
-            f"{cs} film commission contact office",
-        ])
+    if st: search_queries.extend([f"{st} film permit cost fees 2025", f"{st} film crew day rates 2025"])
+    if countries: search_queries.extend([f"{cs} film permit costs 2025", f"{cs} film insurance rates"])
     
-    # Execute searches
     search_results = []
-    for query in search_queries:
+    for query in search_queries[:4]:
         results = ps(query)
         if results.get("results"):
             search_results.extend(results["results"][:3])
     
-    # Extract real links and data
     real_links = []
     price_data = []
     for r in search_results:
         title = r.get("title", "")
         url = r.get("url", "")
         snippet = r.get("snippet", "") or r.get("description", "")
-        if url and title:
-            real_links.append(f"• [{title}]({url})")
-        if snippet and any(kw in snippet.lower() for kw in ["$", "cost", "fee", "rate", "price", "usd"]):
+        if url and title: real_links.append(f"• [{title}]({url})")
+        if snippet and any(kw in snippet.lower() for kw in ["$", "cost", "fee", "rate", "price"]):
             price_data.append(f"- {title}: {snippet[:150]}")
     
     links_text = "\n".join(real_links[:10]) if real_links else "No additional links found."
-    price_text = "\n".join(price_data[:5]) if price_data else "No specific price data found in search results."
+    price_text = "\n".join(price_data[:5]) if price_data else "No specific price data found."
     
-    # 3. Extract numbers from message
-    all_nums = [int(n.replace(',', '')) for n in re.findall(r'(\d{1,3}(?:,\d{3})*)', msg_lower)]
+    # Extract numbers
+    all_nums = [int(n.replace(',', '')) for n in re.findall(r'\b(\d{1,3}(?:,\d{3})*)\b', msg_lower)]
     crew_size = extras = budget = 0
     for num in all_nums:
         num_pos = msg_lower.find(str(num))
         context = msg_lower[max(0, num_pos-20):num_pos+20]
-        if 'crew' in context and crew_size == 0:
-            crew_size = num
-        elif 'extr' in context or 'actor' in context:
-            extras = num
-        elif any(w in context for w in ['budget', 'cost', 'dollar', 'usd']) and budget == 0:
-            budget = num
+        if 'crew' in context and crew_size == 0: crew_size = num
+        elif 'extr' in context or 'actor' in context: extras = num
+        elif any(w in context for w in ['budget', 'cost', 'dollar', 'usd']) and budget == 0: budget = num
     if crew_size == 0 and len(all_nums) >= 2:
         crew_size = all_nums[0]
         if len(all_nums) >= 3: budget = all_nums[2]
     elif crew_size == 0 and len(all_nums) == 1:
         crew_size = all_nums[0]
     
-    # 4. Detect features
     drones = any(w in msg_lower for w in ["drone", "drones", "uav", "quadcopter"])
     scene_type = "aerial" if drones else "urban"
     
-    # 5. Extract real contacts
     contacts = extract_contacts(cs, st)
-    contacts_text = "
-".join(contacts) if contacts else "No specific contacts found. Contact local film commission."
+    contacts_text = "\n".join(contacts) if contacts else "Contact local film commission."
     
-    # 5b. Search for updated requirements (drones, permits, regulations)
+    # Search for updated requirements
     verification_queries = []
-    if st:
-        verification_queries.extend([
-            f"{st} drone regulations filming 2025 2026",
-            f"{st} film permit requirements changes 2025",
-        ])
-    if country:
-        verification_queries.extend([
-            f"{country} drone laws filming 2025 2026",
-            f"{country} film production permit requirements updated",
-            f"{country} film commission regulations changes 2025",
-        ])
+    if st: verification_queries.extend([f"{st} drone regulations filming 2025", f"{st} film permit changes 2025"])
+    if countries: verification_queries.extend([f"{cs} drone laws filming 2025", f"{cs} film regulations updated"])
     
     verification_results = []
     for query in verification_queries[:4]:
@@ -327,10 +213,8 @@ def generate_live_report(message):
                 if title and snippet:
                     verification_results.append(f"- [{title}]({url}): {snippet[:200]}")
     
-    verification_text = "
-".join(verification_results[:6]) if verification_results else "No recent updates found. Always verify directly with local authorities."
+    verification_text = "\n".join(verification_results[:6]) if verification_results else "No recent updates found. Verify with local authorities."
     
-    # 6. Generate report with real data
     prompt = f"""Write a comprehensive film production report based on real search data.
 
 PRODUCTION DETAILS:
@@ -355,42 +239,27 @@ REAL SOURCE LINKS:
 
 Write a detailed report with these sections:
 1. Executive Summary (use production details above)
-2. Country/State Analysis (include real permit costs and processing times from search data)
-3. Bring vs Hire: Cost Analysis (use real price data from search results)
-4. Insurance Requirements (mention real rates if found)
+2. Country/State Analysis (include real permit costs from search data)
+3. Bring vs Hire: Cost Analysis (use real price data)
+4. Insurance Requirements
 5. Actionable Checklist
-6. Key Contacts (use the real contacts found above with emails and phones)
-7. Requirements Verification (use the verification data above to confirm current regulations)
-8. References & Links (use ONLY URLs from search results above)
+6. Key Contacts (use real contacts found above)
+7. Requirements Verification (use verification data above)
+8. References & Links (use ONLY URLs from search results)
 
-IMPORTANT: 
-- Use real data from search results where available
-- Include specific costs and fees found in search
-- Include contact information (emails, phones) in the contacts section
-- Cite sources using markdown links
-- If search didn't find specific prices, use reasonable estimates and note them as such"""
-
-    result = gm(prompt)
-    if result.startswith("Error:"):
-        return generate_demo_report(message)
+IMPORTANT: Use real data from search results. Include specific costs. Include contact info. Cite sources with markdown links."""
     
-    # Add footer
-    result += "
-
----
-*Report generated in **LIVE MODE** with real-time API research.*"
+    result = gm(prompt)
+    if result.startswith("Error:"): return generate_demo_report(message)
+    result += "\n\n---\n*Report generated in **LIVE MODE** with real-time API research.*"
     return result
 
 def generate_demo_report(message):
-    """Generate a complete production report from a single user message."""
     msg_lower = message.lower()
-    
-    # 1. Detect location
     countries = []
     location = None
     found_state = None
     
-    # Check coordinates
     coord_match = re.search(r'(-?\d+\.?\d*)\s*,\s*(-?\d+\.?\d*)', message)
     if coord_match:
         lat, lng = float(coord_match.group(1)), float(coord_match.group(2))
@@ -404,7 +273,6 @@ def generate_demo_report(message):
             elif geo.get("country"):
                 countries.append(geo["country"])
     
-    # Check country keywords
     country_keywords = {"united states": "United States", "usa": "United States", "mexico": "Mexico", 
                        "colombia": "Colombia", "spain": "Spain", "japan": "Japan", "uk": "United Kingdom",
                        "france": "France", "germany": "Germany", "brazil": "Brazil", "canada": "Canada", "costa rica": "Costa Rica"}
@@ -412,46 +280,35 @@ def generate_demo_report(message):
         if kw in msg_lower and country not in countries:
             countries.append(country)
     
+    state_keywords = {"california": "California", "new york": "New York", "georgia": "Georgia",
+                     "louisiana": "Louisiana", "texas": "Texas", "florida": "Florida"}
+    for kw, state in state_keywords.items():
+        if kw in msg_lower:
+            found_state = state
+            if "United States" not in countries:
+                countries.append("United States")
+            break
+    
     if not countries:
         return "Please specify a destination country or US state. Examples: California, New York, Mexico, Spain, Japan, etc."
     
-    # 2. Extract numbers (crew, extras, budget)
     all_nums = [int(n.replace(',', '')) for n in re.findall(r'\b(\d{1,3}(?:,\d{3})*)\b', msg_lower)]
-    
     crew_size = extras = budget = 0
-    
-    # Find keywords with positions
     for num in all_nums:
         num_pos = msg_lower.find(str(num))
         context = msg_lower[max(0, num_pos-20):num_pos+20]
-        
-        if 'crew' in context and crew_size == 0:
-            crew_size = num
-        elif 'extr' in context or 'actor' in context:
-            extras = num
-        elif any(w in context for w in ['budget', 'cost', 'dollar', 'usd', 'spend', 'invest']) and budget == 0:
-            budget = num
-    
-    # Fallback: if no keywords matched but we have numbers
+        if 'crew' in context and crew_size == 0: crew_size = num
+        elif 'extr' in context or 'actor' in context: extras = num
+        elif any(w in context for w in ['budget', 'cost', 'dollar', 'usd']) and budget == 0: budget = num
     if crew_size == 0 and len(all_nums) >= 2:
         crew_size = all_nums[0]
-        if len(all_nums) >= 3 and budget == 0:
-            budget = all_nums[2]
+        if len(all_nums) >= 3: budget = all_nums[2]
     elif crew_size == 0 and len(all_nums) == 1:
         crew_size = all_nums[0]
     
-    # 3. Detect features
     drones = any(w in msg_lower for w in ["drone", "drones", "uav", "quadcopter"])
-    pyrotechnics = any(w in msg_lower for w in ["pyro", "pyrotechnics", "fireworks", "explosion"])
-    night_shoot = any(w in msg_lower for w in ["night", "evening", "dusk", "dark"])
-    water = any(w in msg_lower for w in ["water", "lake", "river", "sea", "ocean", "boat"])
+    scene_type = "aerial" if drones else "urban"
     
-    scene_type = "urban"
-    if drones: scene_type = "aerial"
-    elif water: scene_type = "water"
-    elif any(w in msg_lower for w in ["mountain", "beach", "forest", "desert"]): scene_type = "natural"
-    
-    # 4. Generate report
     cs = ", ".join(countries)
     st = found_state or ""
     loc_str = f" ({st})" if st else ""
@@ -462,10 +319,6 @@ def generate_demo_report(message):
         loc_info += f"\n   📍 Coordinates: {location['lat']}, {location['lng']}"
         loc_info += f"\n   🗺️ Google Maps: https://www.google.com/maps?q={location['lat']},{location['lng']}"
     
-    # Determine mode footer
-    has_apis = bool(get_key("GEMINI_API_KEY")) and bool(get_key("PARALLEL_API_KEY"))
-    mode_footer = "*Report generated in **LIVE MODE** with real-time API research.*" if has_apis else "*Report generated in **DEMO MODE**. For live research, configure API keys and switch to Live mode.*"
-
     return f"""## Film Production Report
 Generated: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
 
@@ -547,9 +400,6 @@ Proceed with **{cs}** — contact local production services for permits, hiring,
 
 ### 9. References & Links
 {get_country_vendors(cs)}
-
----
-{mode_footer}
 """
 
 def generate_docx(text):
@@ -590,11 +440,8 @@ def create_app():
         if not msg: return jsonify({"success": False, "error": "Empty message"}), 400
         
         try:
-            # Check if APIs are configured
-            has_gemini = bool(get_key("GEMINI_API_KEY"))
-            has_parallel = bool(get_key("PARALLEL_API_KEY"))
-            
-            if has_gemini and has_parallel:
+            has_apis = bool(get_key("GEMINI_API_KEY")) and bool(get_key("PARALLEL_API_KEY"))
+            if has_apis:
                 report = generate_live_report(msg)
             else:
                 report = generate_demo_report(msg)
