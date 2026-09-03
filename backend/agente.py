@@ -56,7 +56,8 @@ def get_country_contacts(country):
                           "", "• **SAG-AFTRA**", "  📧 info@sagaftra.org", "  🌐 [sagaftra.org](https://www.sagaftra.org/)"],
         "California": ["• **FilmLA (Los Angeles)**", "  📧 info@filmla.com", "  📞 (213) 977-8600", "  🌐 [filmla.com](https://www.filmla.com/)",
                        "", "• **CA Film Commission**", "  📧 info@film.ca.gov", "  🌐 [film.ca.gov](https://www.film.ca.gov/)"],
-        "New York": ["• **Governor's Office for Motion Picture & TV**", "  📧 info@ny.gov", "  🌐 [esd.ny.gov](https://esd.ny.gov/industries/film-and-television)"],
+        "New York": ["• **Governor's Office for Motion Picture & TV**", "  📧 film@esd.ny.gov", "  🌐 [esd.ny.gov](https://esd.ny.gov/industries/film-and-television)",
+                     "", "• **NYC Mayor's Office (MOME)**", "  📧 mome@nyc.gov", "  🌐 [nyc.gov/mome](https://www.nyc.gov/site/mome/index.page)"],
         "Colombia": ["• **ProColombia Film**", "  📧 film@procolombia.co", "  🌐 [procolombia.co](https://www.procolombia.co/en/industries/creative-industries/film)"],
         "Spain": ["• **Spain Film Commission**", "  📧 info@spainfilmcommission.com", "  🌐 [spainfilmcommission.com](https://www.spainfilmcommission.com/)"],
         "Japan": ["• **Japan Film Commission**", "  📧 info@japanfc.jp", "  🌐 [japanfc.jp](https://www.japanfc.jp/eng/)"],
@@ -304,22 +305,18 @@ def generate_demo_report(message):
         loc_info += f"\n   📍 Coordinates: {location['lat']}, {location['lng']}"
         loc_info += f"\n   🗺️ Google Maps: https://www.google.com/maps?q={location['lat']},{location['lng']}"
     
-    # Build comparison section for multiple locations
-    comparison_section = ""
+    # For multiple locations, use Gemini to generate comparison
+    comparison_note = ""
     states_list = [s.strip() for s in found_state.split(", ") if s.strip()] if found_state else []
     if len(states_list) >= 2:
-        comparison_section = "\n\n### Location Comparison\n"
-        for state in states_list:
-            comparison_section += f"\n**{state}:**\n"
-            comparison_section += f"  • Contact state film commission for permits and incentives\n"
-            comparison_section += f"  • Verify local regulations and union requirements\n"
+        comparison_note = f"\n\n**Note:** This report compares {', '.join(states_list)}. Contact each state's film commission for specific requirements."
     
     return f"""## Film Production Report
 Generated: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
 
 ### 1. Executive Summary
 Production comparison for **{cs}**{loc_str} ({scene_type} locations) with **{extras}** extras, **{crew_size}** crew.
-Budget: **${budget:,}**.{comparison_section}{loc_info}
+Budget: **${budget:,}**.{comparison_note}{loc_info}
 
 ### 2. Country Analysis
 **{cs}**
