@@ -61,8 +61,6 @@ def gm(prompt, retries=2):
     return "Error: Gemini API failed"
 
 def reverse_geocode(lat, lng):
-    """Convert coordinates to city/neighborhood name."""
-    # Use free reverse geocoding
     try:
         r = requests.get(f"https://nominatim.openstreetmap.org/reverse?lat={lat}&lon={lng}&format=json", timeout=5)
         if r.status_code == 200:
@@ -72,84 +70,29 @@ def reverse_geocode(lat, lng):
             neighborhood = addr.get("suburb") or addr.get("neighbourhood") or ""
             state = addr.get("state") or ""
             country = addr.get("country") or ""
-            return {
-                "city": city,
-                "neighborhood": neighborhood,
-                "state": state,
-                "country": country,
-                "full": f"{neighborhood}, {city}, {state}, {country}" if neighborhood else f"{city}, {state}, {country}"
-            }
+            return {"city": city, "neighborhood": neighborhood, "state": state, "country": country,
+                    "full": f"{neighborhood}, {city}, {state}, {country}" if neighborhood else f"{city}, {state}, {country}"}
     except:
         pass
     return {"city": "", "neighborhood": "", "state": "", "country": "", "full": f"{lat}, {lng}"}
 
 def get_sag_aftra_rates():
-    """SAG-AFTRA 2025-2026 rates for Los Angeles zone."""
     return {
-        "background_actor_daily": 231,
-        "background_actor_hourly": 29,
-        "principal_actor_daily": 1246,
-        "principal_actor_weekly": 4357,
-        "pension_health_pct": 20.5,
-        "meal_penalty_first": 25,
-        "meal_penalty_second": 35,
-        "meal_penalty_subsequent": 50,
-        "meal_break_hours": 6,
-        "minimum_background_la": 57,
-        "overtime_hourly_multiplier": 1.5,
-        "golden_time_threshold_hours": 12,
-        "golden_time_multiplier": 2.0,
-        "rest_period_hours": 12,
-        "travel_day_rate": 300,
-        "wardrobe_allowance": 44,
-        "stunt_base_daily": 2608,
+        "background_actor_daily": 231, "background_actor_hourly": 29,
+        "principal_actor_daily": 1246, "principal_actor_weekly": 4357,
+        "pension_health_pct": 20.5, "meal_penalty_first": 25,
+        "meal_penalty_second": 35, "meal_penalty_subsequent": 50,
+        "meal_break_hours": 6, "minimum_background_la": 57,
+        "overtime_hourly_multiplier": 1.5, "golden_time_threshold_hours": 12,
+        "golden_time_multiplier": 2.0, "rest_period_hours": 12,
+        "travel_day_rate": 300, "wardrobe_allowance": 44, "stunt_base_daily": 2608,
     }
-
-def get_permit_costs(location_type, crew_size, city=""):
-    """Calculate permit costs based on location and crew size."""
-    costs = {
-        "low_impact": {"threshold": 30, "fee": 0, "description": "No permit required (under 30 people)"},
-        "regular": {"threshold": 100, "fee": 1620, "description": "Regular filming permit"},
-        "large_scale": {"threshold": 999, "fee": 2500, "description": "Large scale production"},
-    }
-    
-    # City-specific overrides
-    city_costs = {
-        "Beverly Hills": {"regular_fee": 1620, "small_scale_fee": 0, "threshold": 30},
-        "Los Angeles (FilmLA)": {"regular_fee": 765, "small_scale_fee": 0, "threshold": 30},
-        "Santa Monica": {"regular_fee": 875, "small_scale_fee": 0, "threshold": 25},
-        "West Hollywood": {"regular_fee": 650, "small_scale_fee": 0, "threshold": 25},
-        "Culver City": {"regular_fee": 550, "small_scale_fee": 0, "threshold": 25},
-        "Pasadena": {"regular_fee": 600, "small_scale_fee": 0, "threshold": 25},
-        "Long Beach": {"regular_fee": 500, "small_scale_fee": 0, "threshold": 25},
-        "Downtown LA": {"regular_fee": 850, "small_scale_fee": 0, "threshold": 30},
-    }
-    
-    if crew_size <= 30:
-        return {"fee": 0, "description": "Low-impact filming - no permit required (under 30 people)"}
-    elif crew_size <= 50:
-        fee = city_costs.get(city, costs["regular"]).get("regular_fee", 1620)
-        return {"fee": fee, "description": f"Regular filming permit for {crew_size} people in {city}"}
-    else:
-        fee = city_costs.get(city, costs["large_scale"]).get("regular_fee", 2500)
-        return {"fee": fee, "description": f"Large scale production permit for {crew_size} people in {city}"}
 
 def get_insurance_breakdown(crew_size, equipment_value, days):
-    """Detailed insurance cost breakdown."""
-    rates = {
-        "general_liability_daily": 150,  # per $1M coverage
-        "workers_comp_pct": 0.025,  # 2.5% of payroll
-        "equipment_daily_pct": 0.001,  # 0.1% of equipment value per day
-        "cast_insurance_daily": 200,
-        "errors_omissions_daily": 100,
-        "auto_liability_daily": 75,
-        "umbrella_policy_daily": 250,
-    }
-    
-    # Estimate payroll (crew + extras)
-    avg_daily_rate = 400  # average crew day rate
-    estimated_payroll = crew_size * avg_daily_rate * days
-    
+    rates = {"general_liability_daily": 150, "workers_comp_pct": 0.025,
+             "equipment_daily_pct": 0.001, "cast_insurance_daily": 200,
+             "errors_omissions_daily": 100, "auto_liability_daily": 75, "umbrella_policy_daily": 250}
+    estimated_payroll = crew_size * 400 * days
     breakdown = {
         "general_liability": rates["general_liability_daily"] * days,
         "workers_comp": int(estimated_payroll * rates["workers_comp_pct"]),
@@ -157,119 +100,58 @@ def get_insurance_breakdown(crew_size, equipment_value, days):
         "cast_insurance": rates["cast_insurance_daily"] * days,
         "errors_omissions": rates["errors_omissions_daily"] * days,
         "auto_liability": rates["auto_liability_daily"] * days,
-        "umbrella": rates["umbrella_policy_daily"] * days,
-        "total": 0,
+        "umbrella": rates["umbrella_policy_daily"] * days, "total": 0,
     }
     breakdown["total"] = sum(v for k, v in breakdown.items() if k != "total")
-    breakdown["as_pct_of_budget"] = 0  # Will be calculated if budget provided
-    
     return breakdown
 
 def get_parking_requirements(crew_size, extras):
-    """Calculate parking needs for production."""
     total_people = crew_size + extras
-    # Assume 2 people per car on average
     personal_vehicles = total_people // 2
-    # Production vehicles
-    production_vehicles = 2 if crew_size <= 10 else 4  # cube truck + van minimum
-    if crew_size > 20:
-        production_vehicles += 2  # additional equipment trucks
-    
-    total_vehicles = personal_vehicles + production_vehicles
-    
+    production_vehicles = 2 if crew_size <= 10 else 4
+    if crew_size > 20: production_vehicles += 2
     return {
-        "personal_vehicles": personal_vehicles,
-        "production_vehicles": production_vehicles,
-        "total_vehicles": total_vehicles,
-        "parking_cost_daily": total_vehicles * 25,  # $25/vehicle/day average
-        "truck_cost_daily": production_vehicles * 150,  # $150/truck/day
-        "basecamp_needed": crew_size > 15,
-        "basecamp_cost_daily": 500 if crew_size > 15 else 0,
+        "personal_vehicles": personal_vehicles, "production_vehicles": production_vehicles,
+        "total_vehicles": personal_vehicles + production_vehicles,
+        "parking_cost_daily": (personal_vehicles + production_vehicles) * 25,
+        "truck_cost_daily": production_vehicles * 150,
+        "basecamp_needed": crew_size > 15, "basecamp_cost_daily": 500 if crew_size > 15 else 0,
     }
 
 def get_catering_requirements(crew_size, extras, shooting_hours=12):
-    """Calculate catering costs and meal penalty rules."""
     total_people = crew_size + extras
     meals_per_day = 2 if shooting_hours >= 10 else 1
-    snack_cost_per_person = 35  # Craft services
-    meal_cost_per_person = 45  # Hot meal
-    
-    daily_catering = (total_people * meal_cost_per_person * meals_per_day) + (total_people * snack_cost_per_person)
-    
     return {
-        "total_people": total_people,
-        "meals_per_day": meals_per_day,
-        "snack_cost_daily": total_people * snack_cost_per_person,
-        "meal_cost_daily": total_people * meal_cost_per_person * meals_per_day,
-        "total_daily_catering": daily_catering,
-        "meal_penalty_first_30min": 25,
-        "meal_penalty_second_30min": 35,
-        "meal_penalty_subsequent": 50,
-        "turnaround_hours": 6,
-        "golden_time_threshold": 12,
+        "total_people": total_people, "meals_per_day": meals_per_day,
+        "snack_cost_daily": total_people * 35, "meal_cost_daily": total_people * 45 * meals_per_day,
+        "total_daily_catering": (total_people * 45 * meals_per_day) + (total_people * 35),
+        "meal_penalty_first_30min": 25, "meal_penalty_second_30min": 35, "meal_penalty_subsequent": 50,
+        "turnaround_hours": 6, "golden_time_threshold": 12,
     }
 
 def get_budget_estimate(crew_size, extras, shooting_days=1):
-    """Generate detailed budget estimate for a shoot."""
     sag = get_sag_aftra_rates()
-    total_people = crew_size + extras
-    
-    # Extras cost
-    extras_daily = extras * sag["background_actor_daily"]
-    extras_total = extras_daily * shooting_days
-    
-    # Principal actors (estimate if not specified)
-    principals = min(5, max(1, extras // 5))  # 1 principal per 5 extras
-    principals_daily = principals * sag["principal_actor_daily"]
-    principals_total = principals_daily * shooting_days
-    
-    # Crew cost (estimate based on size)
-    avg_crew_rate = 500
-    crew_daily = crew_size * avg_crew_rate
-    crew_total = crew_daily * shooting_days
-    
-    # SAG pension & health
+    principals = min(5, max(1, extras // 5))
+    principals_total = principals * sag["principal_actor_daily"] * shooting_days
+    extras_total = extras * sag["background_actor_daily"] * shooting_days
+    crew_total = crew_size * 500 * shooting_days
     sag_contribution = int((extras_total + principals_total) * (sag["pension_health_pct"] / 100))
-    
-    # Permit (Beverly Hills estimate for 35 people)
-    permit = 1620 if total_people > 30 else 0
-    
-    # Insurance (estimate)
+    permit = 1620 if (crew_size + extras) > 30 else 0
     insurance = 1500 * shooting_days
-    
-    # Parking
     parking = get_parking_requirements(crew_size, extras)
     parking_total = (parking["parking_cost_daily"] + parking["truck_cost_daily"] + parking["basecamp_cost_daily"]) * shooting_days
-    
-    # Catering
     catering = get_catering_requirements(crew_size, extras)
     catering_total = catering["total_daily_catering"] * shooting_days
-    
-    # Equipment rental (estimate based on crew size)
-    equipment_daily = 2000 if crew_size <= 10 else 3500
-    equipment_total = equipment_daily * shooting_days
-    
+    equipment_total = (2000 if crew_size <= 10 else 3500) * shooting_days
     total = extras_total + principals_total + crew_total + sag_contribution + permit + insurance + parking_total + catering_total + equipment_total
-    
     return {
-        "shooting_days": shooting_days,
-        "principals": principals,
-        "principals_daily": principals_daily,
-        "principals_total": principals_total,
-        "extras": extras,
-        "extras_daily": extras_daily,
-        "extras_total": extras_total,
-        "crew_daily": crew_daily,
-        "crew_total": crew_total,
-        "sag_contribution": sag_contribution,
-        "permit": permit,
-        "insurance": insurance,
-        "parking_total": parking_total,
-        "catering_total": catering_total,
-        "equipment_total": equipment_total,
-        "total": total,
-        "contingency": int(total * 0.1),
-        "grand_total": int(total * 1.1),
+        "shooting_days": shooting_days, "principals": principals,
+        "principals_daily": principals * sag["principal_actor_daily"], "principals_total": principals_total,
+        "extras": extras, "extras_daily": extras * sag["background_actor_daily"], "extras_total": extras_total,
+        "crew_daily": crew_size * 500, "crew_total": crew_total,
+        "sag_contribution": sag_contribution, "permit": permit, "insurance": insurance,
+        "parking_total": parking_total, "catering_total": catering_total, "equipment_total": equipment_total,
+        "total": total, "contingency": int(total * 0.1), "grand_total": int(total * 1.1),
     }
 
 def extract_production_info(message):
@@ -282,13 +164,9 @@ def extract_production_info(message):
         lat, lng = float(coord_match.group(1)), float(coord_match.group(2))
         location = {"lat": lat, "lng": lng, "name": f"{lat}, {lng}"}
         location_type = "coordinates"
-        # Reverse geocode
         geo = reverse_geocode(lat, lng)
         if geo["city"]:
-            location["city"] = geo["city"]
-            location["state"] = geo["state"]
-            location["neighborhood"] = geo["neighborhood"]
-            location["full_address"] = geo["full"]
+            location.update({"city": geo["city"], "state": geo["state"], "neighborhood": geo["neighborhood"], "full_address": geo["full"]})
     
     maps_match = re.search(r'(https?://(?:www\.)?google\.com/maps/[^\s]+)', message)
     if maps_match:
@@ -313,55 +191,68 @@ def extract_production_info(message):
     }
     
     usa_states = {
-        "california": "California", "ca": "California", "los angeles": "California",
+        "california": "California", "los angeles": "California",
         "hollywood": "California", "san francisco": "California", "san diego": "California",
-        "new york": "New York", "ny": "New York", "nyc": "New York",
-        "brooklyn": "New York", "manhattan": "New York",
-        "georgia": "Georgia", "ga": "Georgia", "atlanta": "Georgia", "savannah": "Georgia",
+        "new york": "New York", "brooklyn": "New York", "manhattan": "New York",
+        "georgia": "Georgia", "atlanta": "Georgia", "savannah": "Georgia",
         "louisiana": "Louisiana", "new orleans": "Louisiana",
-        "new mexico": "New Mexico", "nm": "New Mexico", "albuquerque": "New Mexico",
-        "texas": "Texas", "tx": "Texas", "austin": "Texas", "houston": "Texas", "dallas": "Texas",
-        "illinois": "Illinois", "il": "Illinois", "chicago": "Illinois",
-        "florida": "Florida", "fl": "Florida", "miami": "Florida", "orlando": "Florida",
-        "colorado": "Colorado", "co": "Colorado", "denver": "Colorado",
-        "washington": "Washington", "wa": "Washington", "seattle": "Washington",
-        "oregon": "Oregon", "or": "Oregon", "portland": "Oregon",
-        "tennessee": "Tennessee", "tn": "Tennessee", "nashville": "Tennessee",
-        "arizona": "Arizona", "az": "Arizona", "phoenix": "Arizona",
-        "utah": "Utah", "ut": "Utah", "salt lake city": "Utah",
-        "nevada": "Nevada", "nv": "Nevada", "las vegas": "Nevada",
-        "massachusetts": "Massachusetts", "ma": "Massachusetts", "boston": "Massachusetts",
-        "pennsylvania": "Pennsylvania", "pa": "Pennsylvania", "philadelphia": "Pennsylvania",
-        "north carolina": "North Carolina", "nc": "North Carolina",
-        "south carolina": "South Carolina", "sc": "South Carolina",
-        "michigan": "Michigan", "mi": "Michigan", "detroit": "Michigan",
-        "ohio": "Ohio", "oh": "Ohio", "cleveland": "Ohio", "columbus": "Ohio",
-        "virginia": "Virginia", "va": "Virginia",
-        "maryland": "Maryland", "md": "Maryland", "baltimore": "Maryland",
-        "new jersey": "New Jersey", "nj": "New Jersey",
-        "connecticut": "Connecticut", "ct": "Connecticut",
-        "alabama": "Alabama", "al": "Alabama",
-        "kentucky": "Kentucky", "ky": "Kentucky",
-        "minnesota": "Minnesota", "mn": "Minnesota", "minneapolis": "Minnesota",
-        "wisconsin": "Wisconsin", "wi": "Wisconsin",
-        "indiana": "Indiana", "in": "Indiana",
-        "missouri": "Missouri", "mo": "Missouri", "kansas city": "Missouri",
-        "hawaii": "Hawaii", "hi": "Hawaii", "honolulu": "Hawaii",
-        "alaska": "Alaska", "ak": "Alaska",
+        "new mexico": "New Mexico", "albuquerque": "New Mexico",
+        "texas": "Texas", "austin": "Texas", "houston": "Texas", "dallas": "Texas",
+        "illinois": "Illinois", "chicago": "Illinois",
+        "florida": "Florida", "miami": "Florida", "orlando": "Florida",
+        "colorado": "Colorado", "denver": "Colorado",
+        "washington": "Washington", "seattle": "Washington",
+        "oregon": "Oregon", "portland": "Oregon",
+        "tennessee": "Tennessee", "nashville": "Tennessee",
+        "arizona": "Arizona", "phoenix": "Arizona",
+        "utah": "Utah", "salt lake city": "Utah",
+        "nevada": "Nevada", "las vegas": "Nevada",
+        "massachusetts": "Massachusetts", "boston": "Massachusetts",
+        "pennsylvania": "Pennsylvania", "philadelphia": "Pennsylvania",
+        "north carolina": "North Carolina",
+        "south carolina": "South Carolina",
+        "michigan": "Michigan", "detroit": "Michigan",
+        "ohio": "Ohio", "cleveland": "Ohio", "columbus": "Ohio",
+        "virginia": "Virginia",
+        "maryland": "Maryland", "baltimore": "Maryland",
+        "new jersey": "New Jersey",
+        "connecticut": "Connecticut",
+        "alabama": "Alabama",
+        "kentucky": "Kentucky",
+        "minnesota": "Minnesota", "minneapolis": "Minnesota",
+        "wisconsin": "Wisconsin",
+        "indiana": "Indiana",
+        "missouri": "Missouri", "kansas city": "Missouri",
+        "hawaii": "Hawaii", "honolulu": "Hawaii",
+        "alaska": "Alaska",
     }
     
     found_state = None
     countries = []
-    for key, val in usa_states.items():
-        if key in msg_lower:
-            found_state = val
-            countries = ["United States"]
-            break
     
+    # Check general countries first
+    for key, val in film_countries.items():
+        if key in msg_lower and val not in countries:
+            countries.append(val)
+    
+    # Check USA states - require word boundaries for 2-3 letter abbreviations
+    state_abbrs = [k for k in usa_states.keys() if len(k) <= 3]
+    if state_abbrs:
+        state_pattern = r'\b(' + '|'.join(re.escape(k) for k in state_abbrs) + r')\b'
+        state_match = re.search(state_pattern, msg_lower)
+        if state_match:
+            found_state = usa_states[state_match.group(1)]
+            if "United States" not in countries:
+                countries.append("United States")
+    
+    # Check full state names (4+ chars) with substring match
     if not found_state:
-        for key, val in film_countries.items():
-            if key in msg_lower and val not in countries:
-                countries.append(val)
+        for key, val in usa_states.items():
+            if len(key) > 3 and key in msg_lower:
+                found_state = val
+                if "United States" not in countries:
+                    countries.append("United States")
+                break
     
     if not countries:
         return {"error": True, "message": "Please specify a destination country or US state. Examples: California, New York, Mexico, Spain, Japan, etc."}
@@ -380,21 +271,16 @@ def extract_production_info(message):
     
     extras = 0
     m = re.search(r'(\d+)\s*extras?\b', msg_lower)
-    if m:
-        extras = int(m.group(1))
+    if m: extras = int(m.group(1))
     
     principals = 0
     m = re.search(r'(\d+)\s*(?:actors?|principals?|talent)', msg_lower)
-    if m:
-        principals = int(m.group(1))
+    if m: principals = int(m.group(1))
     
     crew_size = 10
     m = re.search(r'(\d+)\s*(?:crew|people|person|staff|team)', msg_lower)
-    if m:
-        crew_size = int(m.group(1))
-    else:
-        # Estimate crew size from extras
-        crew_size = max(10, extras // 2)
+    if m: crew_size = int(m.group(1))
+    else: crew_size = max(10, extras // 2)
     
     drones = any(w in msg_lower for w in ["drone", "drones", "uav", "quadcopter", "fpv"])
     pyrotechnics = any(w in msg_lower for w in ["pyro", "pyrotechnics", "fireworks", "explosion", "fire", "burn"])
@@ -412,28 +298,17 @@ def extract_production_info(message):
         if m:
             amount = float(m.group(1).replace(",", ""))
             unit = (m.group(2) or "").lower()
-            if unit in ["k", "thousand"]:
-                amount *= 1000
-            elif unit in ["million", "m"]:
-                amount *= 1000000
+            if unit in ["k", "thousand"]: amount *= 1000
+            elif unit in ["million", "m"]: amount *= 1000000
             budget_usd = int(amount)
             break
     
     return {
-        "countries": countries,
-        "location": location,
-        "location_type": location_type,
-        "scene_type": scene_type,
-        "extras": extras,
-        "principals": principals,
-        "crew_size": crew_size,
-        "drones": drones,
-        "pyrotechnics": pyrotechnics,
-        "night_shoot": night_shoot,
-        "water_related": water_related,
-        "budget_usd": budget_usd,
-        "state": found_state,
-        "error": False
+        "countries": countries, "location": location, "location_type": location_type,
+        "scene_type": scene_type, "extras": extras, "principals": principals,
+        "crew_size": crew_size, "drones": drones, "pyrotechnics": pyrotechnics,
+        "night_shoot": night_shoot, "water_related": water_related,
+        "budget_usd": budget_usd, "state": found_state, "error": False
     }
 
 def get_usa_state_info(state):
@@ -447,13 +322,6 @@ def get_usa_state_info(state):
             "showstoppers": "FilmLA permits required; High union costs; Parking restrictions",
             "hotels": "The Garland, Magic Castle Hotel, Taglyan Complex",
             "hospitals": "Cedars-Sinai (LA), UCSF (SF), UCSD (SD)",
-            "film_offices": {
-                "Beverly Hills": "Beverly Hills Film Office - Form Center",
-                "Santa Monica": "Santa Monica Film Office",
-                "West Hollywood": "WeHo Film Office",
-                "Culver City": "Culver City Film Office",
-                "Downtown LA": "FilmLA (Mayor's Office of Media & Entertainment)",
-            }
         },
         "New York": {
             "film_office": "Governor's Office for Motion Picture & TV",
@@ -541,6 +409,59 @@ def get_country_info(country):
                                "insurance": "Local insurance required",
                                "medical": "Verify nearest hospital"})
 
+def get_country_vendors(country):
+    vendors = {
+        "Mexico": [
+            "• [Story Productions](https://story.mx/) — Full service production",
+            "• [We Produce](https://weproduce.mx/) — Equipment & crew",
+            "• [80 Days Films](https://80daysfilms.com/) — International co-productions",
+            "• [Mexico Film Commission](https://www.filmcommission.gob.mx/) — Permits & locations",
+        ],
+        "United States": [
+            "• [Film Emissary](https://www.filmemissary.com/) — Insurance",
+            "• [Wrapbook](https://www.wrapbook.com/) — Payroll + Insurance",
+            "• [ShareGrid](https://www.sharegrid.com/) — Equipment rental",
+            "• [ProductionHUB](https://www.productionhub.com/) — Crew & vendors",
+            "• [Mandy](https://www.mandy.com/) — Crew finder",
+            "• [Peerspace](https://www.peerspace.com/) — Location rentals",
+            "• [Giggster](https://www.giggster.com/) — Film locations",
+            "• [SAG-AFTRA](https://www.sagaftra.org/) — Union resources",
+            "• [FilmLA](https://www.filmla.com/) — LA permits",
+        ],
+        "California": [
+            "• [FilmLA](https://www.filmla.com/) — LA City permits",
+            "• [CA Film Commission](https://www.film.ca.gov/) — State incentives",
+            "• [SAG-AFTRA](https://www.sagaftra.org/) — Union rates",
+        ],
+        "New York": [
+            "• [MOME](https://www.nyc.gov/site/mome/index.page) — NYC permits",
+            "• [NY Film Commission](https://esd.ny.gov/new-york-state-film-tax-credit-program) — Incentives",
+        ],
+        "Georgia": [
+            "• [GA Film Office](https://www.georgia.org/industries/film-entertainment) — State film office",
+        ],
+        "Louisiana": [
+            "• [LA Entertainment](https://www.louisianaentertainment.gov/) — State film office",
+        ],
+        "New Mexico": [
+            "• [NM Film Office](https://nmfilm.com/) — State film office",
+        ],
+        "Colombia": [
+            "• [ProColombia Film](https://www.procolombia.co/en/industries/creative-industries/film) — Film commission",
+            "• [Cartagena Film Festival](https://www.cartagenafilmfestival.com/) — Festival info",
+        ],
+        "Spain": [
+            "• [Spain Film Commission](https://www.spainfilmcommission.com/) — Locations & permits",
+        ],
+        "Japan": [
+            "• [Japan Film Commission](https://www.japanfc.jp/eng/) — Production resources",
+        ],
+        "United Kingdom": [
+            "• [British Film Commission](https://britishfilmcommission.org.uk/) — UK production",
+        ],
+    }
+    return "\n".join(vendors.get(country, ["• Contact local film office for vendor recommendations"]))
+
 def generate_demo_report(data):
     if data.get("error"):
         return f"**{data['message']}**"
@@ -549,7 +470,6 @@ def generate_demo_report(data):
     st = data.get("state", "")
     loc_str = f" ({st})" if st else ""
     
-    # Location detection
     location_info = ""
     if data.get("location") and data["location"].get("city"):
         city = data["location"]["city"]
@@ -592,12 +512,9 @@ Budget: ${data['budget_usd']:,}. Key challenges: permits, crew, compliance, insu
 ├── Permits: {si['permits']}
 ├── Unions: {si['unions']}
 ├── Show Stoppers: {si['showstoppers']}
-├── Hotels: {si['hotels']}
-├── Hospitals: {si['hospitals']}
-└── Film Office Links: [FilmLA](https://www.filmla.com/) | [CA Film Commission](https://www.film.ca.gov/) | [Beverly Hills](https://www.beverlyhills.org/departments/filming/)
+└── Hotels: {si['hotels']} | Hospitals: {si['hospitals']}
 """
     
-    # Budget Estimate
     budget = get_budget_estimate(data['crew_size'], data['extras'])
     sag = get_sag_aftra_rates()
     
@@ -617,26 +534,19 @@ Budget: ${data['budget_usd']:,}. Key challenges: permits, crew, compliance, insu
 └── GRAND TOTAL (1 day): ${budget['grand_total']:,}
 """
 
-    # SAG-AFTRA Section
     report += f"""
 ### 4. SAG-AFTRA Requirements (2025-2026)
 ├── Background Actors: ${sag['background_actor_daily']}/day (8 hours)
-├── Background Hourly: ${sag['background_actor_hourly']}/hour
 ├── Principal Actors: ${sag['principal_actor_daily']}/day
-├── Principal Weekly: ${sag['principal_actor_weekly']}/week
 ├── Pension & Health: {sag['pension_health_pct']}% of gross
 ├── Meal Break: Every {sag['meal_break_hours']} hours
 ├── Meal Penalty (1st 30min): ${sag['meal_penalty_first']}
 ├── Meal Penalty (2nd 30min): ${sag['meal_penalty_second']}
-├── Meal Penalty (subsequent): ${sag['meal_penalty_subsequent']}
 ├── Golden Time (>{sag['golden_time_threshold_hours']}hrs): {sag['golden_time_multiplier']}× hourly
 ├── Rest Period: {sag['rest_period_hours']} hours between wrap/call
-├── Travel Day: ${sag['travel_day_rate']}
-├── Wardrobe Allowance: ${sag['wardrobe_allowance']}
-└── Stunt Base: ${sag['stunt_base_daily']}/day
+└── Travel Day: ${sag['travel_day_rate']}
 """
 
-    # Insurance Breakdown
     ins = get_insurance_breakdown(data['crew_size'], 50000, 1)
     report += f"""
 ### 5. Insurance Breakdown (1 day)
@@ -648,19 +558,8 @@ Budget: ${data['budget_usd']:,}. Key challenges: permits, crew, compliance, insu
 ├── Auto Liability: ${ins['auto_liability']}
 ├── Umbrella Policy: ${ins['umbrella']}
 └── TOTAL DAILY INSURANCE: ${ins['total']}
-
-Recommended Providers:
-  • [Film Emissary](https://www.filmemissary.com/) (US film production)
-  • [AIG Entertainment](https://www.aig.com/business/entertainment) (Global)
-  • [Hiscox](https://www.hiscox.com/small-business/film-entertainment) (International)
-  • [Allianz Global](https://www.allianz.com/en/offerings/entertainment.html) (International)
-  • [Lloyd's of London](https://www.lloyds.com/) (High-value)
-  • [Wrapbook](https://www.wrapbook.com/) (Payroll + Insurance)
-  • [Kelly Insurance Group](https://www.kellyinsurancegroup.com/) (Entertainment)
-  • [Front Row Insurance](https://www.frontrowinsurance.com/) (Production)
 """
 
-    # Parking & Logistics
     parking = get_parking_requirements(data['crew_size'], data['extras'])
     catering = get_catering_requirements(data['crew_size'], data['extras'])
     
@@ -686,8 +585,7 @@ Recommended Providers:
 └── Meal Penalty (after): ${catering['meal_penalty_subsequent']}
 """
 
-    # Next Steps con enlaces reales
-    report += f"""
+    report += """
 ### 8. Next Steps & Contacts
 1. Contact local film office for specific permit requirements
 2. Secure insurance quotes from recommended providers
@@ -698,8 +596,24 @@ Recommended Providers:
 7. Arrange catering (dietary restrictions, meal timing)
 8. Verify nearest hospital with ER + foreign language support
 """
-    
 
+    # Contextual links based on country/state
+    country_links = get_country_vendors(data['countries'][0])
+    state = data.get("state", "")
+    
+    if state:
+        state_links = get_country_vendors(state)
+        report += f"""
+### 9. References & Links
+{country_links}
+
+{state_links}
+"""
+    else:
+        report += f"""
+### 9. References & Links
+{country_links}
+"""
     
     return report
 
@@ -712,27 +626,58 @@ def process_query(message, demo_mode=False):
     if use_demo:
         return generate_demo_report(data)
     
-    # Live research
+    # Live research - gather real links from Parallel
+    search_results = []
+    with ThreadPoolExecutor(max_workers=4) as executor:
+        futures = {}
+        for c in data["countries"]:
+            futures[executor.submit(ps, f"{c} film production insurance providers 2025")] = f"{c}_insurance"
+            futures[executor.submit(ps, f"{c} film commission permit office website")] = f"{c}_film_office"
+            futures[executor.submit(ps, f"{c} film equipment rental companies")] = f"{c}_equipment"
+            if data["drones"]:
+                futures[executor.submit(ps, f"{c} drone permit regulations filming")] = f"{c}_drone"
+            if data["pyrotechnics"]:
+                futures[executor.submit(ps, f"{c} pyrotechnics filming permit special effects")] = f"{c}_pyro"
+        
+        for future in as_completed(futures, timeout=30):
+            try:
+                result = future.result()
+                if result.get("results"):
+                    search_results.extend(result["results"][:2])
+            except:
+                pass
+    
+    real_links = []
+    for r in search_results:
+        title = r.get("title", "")
+        url = r.get("url", "")
+        if url and title:
+            real_links.append(f"• [{title}]({url})")
+    
+    links_text = "\n".join(real_links[:15]) if real_links else "No specific links found in search results."
+    
     cs = ", ".join(data["countries"])
     st = data.get("state", "")
+    
     prompt = f"""Film production analysis for {cs}{' ('+st+' state)' if st else ''}.
 PRODUCTION: {data['scene_type']} location, {data['extras']} extras, {data['principals']} principals, {data['crew_size']} crew, ${data['budget_usd']:,} budget
 DRONES: {data['drones']}, PYRO: {data['pyrotechnics']}, NIGHT: {data['night_shoot']}
 
+SEARCH RESULTS FOUND:
+{links_text}
+
 WRITE A DETAILED REPORT:
 1. Executive Summary
-2. Country/State Analysis Table:
-Country [RISK]
-├── Permit Cost, Processing Time
-├── Key Restrictions
-└── Show Stoppers: (drone bans, visa requirements, legal barriers)
+2. Country/State Analysis Table with real data from search
 3. Detailed Budget Estimate (with real numbers)
 4. SAG-AFTRA Requirements (2025-2026 rates)
 5. Insurance Breakdown (medical, equipment, liability)
 6. Parking & Logistics (vehicles, costs)
 7. Catering Requirements (meal penalties)
 8. Next Steps & Contacts
+9. References & Links (ONLY use links from search results above - do not invent URLs)
 
+IMPORTANT: Only include URLs that appear in the search results. Do not make up website addresses.
 Be specific about showstoppers - what could STOP production."""
     
     result = gm(prompt)
@@ -793,8 +738,7 @@ def generate_docx(text):
     
     for line in text.split('\n'):
         line = line.strip()
-        if not line:
-            continue
+        if not line: continue
         if line.startswith('## '):
             doc.add_heading(line[3:], level=2)
         elif line.startswith('### '):
@@ -802,7 +746,8 @@ def generate_docx(text):
         elif '☐' in line:
             doc.add_paragraph(line.replace('☐', '').strip()).style = 'List Bullet'
         elif '•' in line:
-            doc.add_paragraph(line.lstrip('•').strip()).style = 'List Bullet'
+            clean = line.lstrip('•').strip()
+            if clean: doc.add_paragraph(clean).style = 'List Bullet'
         elif any(x in line for x in ['├──', '└──', '│', '[HIGH]', '[MEDIUM]', '[LOW]']):
             doc.add_paragraph(line.replace('├── ', '').replace('└── ', '').replace('│', '').strip())
         elif line and not line.startswith('['):
