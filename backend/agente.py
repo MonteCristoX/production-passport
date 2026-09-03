@@ -142,12 +142,13 @@ def generate_live_report(message):
     
     state_keywords = {"california": "California", "new york": "New York", "georgia": "Georgia",
                      "louisiana": "Louisiana", "texas": "Texas", "florida": "Florida"}
+    found_states = []
     for kw, state in state_keywords.items():
         if kw in msg_lower:
-            found_state = state
+            found_states.append(state)
             if "United States" not in countries:
                 countries.append("United States")
-            break
+    found_state = ", ".join(found_states) if found_states else None
     
     cs = ", ".join(countries) if countries else "the specified location"
     st = found_state or ""
@@ -282,12 +283,13 @@ def generate_demo_report(message):
     
     state_keywords = {"california": "California", "new york": "New York", "georgia": "Georgia",
                      "louisiana": "Louisiana", "texas": "Texas", "florida": "Florida"}
+    found_states = []
     for kw, state in state_keywords.items():
         if kw in msg_lower:
-            found_state = state
+            found_states.append(state)
             if "United States" not in countries:
                 countries.append("United States")
-            break
+    found_state = ", ".join(found_states) if found_states else None
     
     if not countries:
         return "Please specify a destination country or US state. Examples: California, New York, Mexico, Spain, Japan, etc."
