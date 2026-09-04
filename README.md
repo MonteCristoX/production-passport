@@ -1,94 +1,64 @@
-# Production Passport 🎬
+# Production Passport - Agentic Cinema Hackathon Submission
 
-**Agente inteligente para investigación de producción cinematográfica internacional**
+## Project Overview
 
-## Descripción
+Production Passport es un agente de IA que toma descripciones de producciones de filmación y genera automáticamente informes completos con requisitos de permisos, costos estimados, contactos de vendor, reglas de drones, y estimaciones de presupuesto para filmaciones internacionales.
 
-Production Passport es un agente de IA que investiga automáticamente requisitos de producción cinematográfica (permisos, incentivos fiscales, costos, restricciones) por país y genera un reporte comparativo accionable en minutos en lugar de semanas.
+## Features
 
-Construido para el [Agentic Cinema: The Blockbuster Hackathon](https://agentic-cinema.devpost.com/) - Track: **Parallel Web Systems**
+- **Geocoding inverso automático**: Detecta la ubicación exacta (ciudad, estado, país) a partir de coordenadas o descripciones de texto
+- **Búsqueda en tiempo real**: Usa Parallel Search API para encontrar requisitos de permisos actualizados, costos de crew, e información de vendor
+- **Comparación de ubicaciones**: Compara múltiples ubicaciones al mismo tiempo (ej: California vs New York) con datos específicos por estado
+- **Extracción de contactos**: Encuentra emails, teléfonos, y sitios web de film commissions y production services
+- **Generación de reportes**: HTML informativos y DOCX descargables con toda la información
+- **Modo demo**: Funciona sin API keys para demostraciones rápidas
 
-## Demo
+## Tech Stack
 
-[URL del demo aquí]
+- **Backend**: Flask + Python
+- **Search**: Parallel AI Search API (v1/search)
+- **AI**: Google Gemini via google-generativeai SDK
+- **Export**: python-docx para archivos Word
+- **Geocoding**: BigDataCloud API (gratuito, sin clave)
 
-## Cómo Funciona
+## Data Sources
 
-1. **Input:** El usuario ingresa el desglose de producción (locación, equipo especial, extras, etc.)
-2. **Investigación:** El agente usa Parallel Search API para buscar información en film commissions y fuentes oficiales
-3. **Extracción:** Parallel Extract API extrae los detalles específicos de cada fuente
-4. **Síntesis:** Gemini Enterprise razona sobre la información y genera un reporte comparativo
-5. **Output:** Reporte con costos, tiempos, requisitos, riesgos y checklist accionable por país
+- Parallel Search API: información de permisos, costos, vendors
+- BigDataCloud: geocoding inverso por coordenadas
+- Film commission websites: contactos y requisitos
 
-## Stack Tecnológico
+## How It Works
 
-- **Google Cloud Gemini Enterprise** - Modelo de lenguaje (requerido por el hackathon)
-- **Parallel Web Systems** - Search, Extract y Monitor APIs (partner track)
-- **ADK (Agent Development Kit)** - Framework para construir el agente
-- **Flask** - Backend API
-- **Next.js + TailwindCSS** - Frontend (o HTML vanilla para versión mínima)
+1. El usuario ingresa una descripción de producción (ubicación, crew, extras, budget, drones)
+2. El sistema detecta automáticamente la ubicación mediante geocoding
+3. Parallel Search API busca información actualizada de permisos, costos, vendors
+4. Google Gemini genera un reporte completo basado en los datos encontrados
+5. El usuario puede descargar el reporte en formato DOCX
 
-## Instalación
+## Installation
 
 ```bash
-# Clonar repositorio
-git clone https://github.com/tu-usuario/production-passport.git
-cd production-passport
-
-# Backend
 cd backend
-python -m venv venv
-source venv/bin/activate
 pip install -r requirements.txt
-
-# Configurar variables de entorno
-cp ../.env.example .env
-# Editar .env con tus API keys
-
-# Ejecutar
 python agente.py
 ```
 
-## Variables de Entorno
+Luego abre http://localhost:8080 en tu navegador.
 
-| Variable | Descripción |
-|----------|-------------|
-| `PARALLEL_API_KEY` | API key de Parallel Web Systems |
-| `GEMINI_API_KEY` | API key de Google Cloud (Gemini) |
+## Environment Variables
 
-## Uso
+- `PARALLEL_API_KEY`: Parallel AI API key (para búsqueda en tiempo real)
+- `GEMINI_API_KEY`: Google Gemini API key (para generación de reportes)
 
-1. Abrir http://localhost:8080
-2. Llenar el formulario con el desglose de producción
-3. Seleccionar países a comparar
-4. Clic en "Investigar"
-5. Esperar 30-60 segundos para el reporte
+## Links
 
-## API Endpoints
+- **Project URL**: https://replit.com/@MonteCristoX/production-passport
+- **Code Repository**: https://github.com/MonteCristoX/production-passport
+- **Demo Video**: [Pending - to be uploaded]
 
-- `POST /api/investigar` - Genera reporte comparativo
-- `GET /api/health` - Health check
+## Learnings
 
-## Contribuir
-
-Este proyecto es parte de un hackathon. Para contribuir:
-
-1. Fork el repositorio
-2. Crea una rama (`git checkout -b feature/nueva-funcionalidad`)
-3. Commit tus cambios (`git commit -m 'Agrega nueva funcionalidad'`)
-4. Push a la rama (`git push origin feature/nueva-funcionalidad`)
-5. Abre un Pull Request
-
-## Licencia
-
-MIT License - ver [LICENSE](LICENSE) para detalles
-
-## Autor
-
-**Johnny Aguirre (Ekrome)** - [LinkedIn](https://linkedin.com/in/tu-perfil)
-
-## Agradecimientos
-
-- Google Cloud por Gemini Enterprise
-- Parallel Web Systems por las APIs de búsqueda
-- Devpost por organizar el hackathon
+- Integrar múltiples APIs (Parallel, Gemini, BigDataCloud) en un flujo de trabajo cohesivo requiere manejo cuidadoso de errores y timeouts
+- Los datos en tiempo real de Parallel mejoran significativamente la utilidad del reporte vs datos pre-cargados
+- El manejo de fallos con fallback a Demo mode asegura que la demo siempre funcione, incluso sin APIs configuradas
+- La comparación entre múltiples ubicaciones necesita búsqueda paralela para cada estado/país

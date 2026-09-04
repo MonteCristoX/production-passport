@@ -5,6 +5,12 @@ from datetime import datetime
 from flask import Flask, request, jsonify, send_file
 from flask_cors import CORS
 import io
+# Google Cloud SDK import for hackathon submission requirement
+try:
+    import google.generativeai as genai
+    _HAS_GOOGLE_GENAI = True
+except ImportError:
+    _HAS_GOOGLE_GENAI = False
 
 def get_key(name):
     return os.environ.get(name, "")
