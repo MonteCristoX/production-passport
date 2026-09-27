@@ -54,7 +54,7 @@ Luego abre http://localhost:8080 en tu navegador.
 
 - **Project URL**: https://production-passport.replit.app
 - **Code Repository**: https://github.com/MonteCristoX/production-passport
-- **Demo Video**: [Pending - to be uploaded]
+- **Demo Video**: https://youtu.be/tGXwpilfdu8
 
 ## Learnings
 
